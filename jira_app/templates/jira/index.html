@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div style="max-width: 600px; margin: auto;">
+    <h2>Select Epic</h2>
+    <p>Enter a Jira Epic Key to begin orchestrating tasks.</p>
+    <div>
+        <input type="text" id="epicInput" placeholder="e.g. PROJ-123" style="padding: 10px; width: 300px;">
+        <button onclick="goToEpic()">Load Stories</button>
+    </div>
+</div>
+
+<script>
+function goToEpic() {
+    const key = document.getElementById('epicInput').value.trim();
+    if (key) {
+        window.location.href = `/jira/epic/${key}/stories/`;
+    } else {
+        alert("Please enter a key");
+    }
+}
+</script>
+{% endblock %}
