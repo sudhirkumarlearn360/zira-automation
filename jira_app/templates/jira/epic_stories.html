@@ -58,6 +58,35 @@
     button#previewBtn { background: #0052cc; color: white; }
     button.btn-secondary { background: rgba(9, 30, 66, 0.08); color: #42526e; }
     button:disabled { background: #ebecf0; color: #a5adba; cursor: not-allowed; }
+    
+    .remove-btn {
+        margin-right: 8px;
+        color: #de350b;
+        font-weight: bold;
+        cursor: pointer;
+        padding: 0 5px;
+        font-size: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    }
+    .remove-btn:hover { background: #ffebe6; }
+
+    .move-btn {
+        margin-left: 5px;
+        color: #0052cc;
+        font-weight: bold;
+        cursor: pointer;
+        padding: 4px 8px;
+        font-size: 14px;
+        background: rgba(0, 82, 204, 0.1);
+        border-radius: 3px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .move-btn:hover { background: rgba(0, 82, 204, 0.2); }
 </style>
 
 <div class="workspace">
@@ -73,6 +102,7 @@
                 <div class="card-actions">
                     <button class="action-btn" onclick="viewStoryByIndex({{ forloop.counter0 }})">Details</button>
                     <a href="{{ jira_base_url }}/browse/{{ story.key }}" target="_blank" class="action-btn primary">Jira ↗</a>
+                    <span class="move-btn" onclick="moveToQueue(this, event)" title="Move to Queue">❯</span>
                 </div>
             </div>
         {% endfor %}
@@ -165,13 +195,72 @@ function navStory(dir) { viewStoryByIndex(currentStoryIndex + dir); }
 
 function closeModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
 
+function moveToQueue(btn, event) {
+    if(event) event.stopPropagation(); // Prevent drag start if any
+    const card = btn.closest('.card');
+    const queue = document.querySelector('#queueCol .story-list');
+    queue.appendChild(card);
+    updateCardState(card, 'queue');
+}
+
+function moveBackToBacklog(btn, event) {
+    if(event) event.stopPropagation();
+    const card = btn.closest('.card');
+    const backlog = document.querySelector('#backlogCol .story-list');
+    backlog.appendChild(card);
+    updateCardState(card, 'backlog');
+}
+
+function updateCardState(card, target) {
+    const left = card.querySelector('.card-left');
+    const actions = card.querySelector('.card-actions');
+    
+    if (target === 'queue') {
+        // Add Remove (X) button if missing
+        if (!left.querySelector('.remove-btn')) {
+            const removeBtn = document.createElement('span');
+            removeBtn.innerHTML = '×';
+            removeBtn.className = 'remove-btn';
+            removeBtn.title = 'Remove from Queue';
+            removeBtn.onclick = (e) => moveBackToBacklog(removeBtn, e);
+            left.prepend(removeBtn);
+        }
+        // Remove Move (>) button if present
+        const moveBtn = actions.querySelector('.move-btn');
+        if (moveBtn) moveBtn.remove();
+        
+    } else {
+        // Remove Remove (X) button
+        const removeBtn = left.querySelector('.remove-btn');
+        if (removeBtn) removeBtn.remove();
+        
+        // Add Move (>) button if missing
+        if (!actions.querySelector('.move-btn')) {
+             const moveBtn = document.createElement('span');
+             moveBtn.innerText = '❯';
+             moveBtn.className = 'move-btn';
+             moveBtn.title = 'Move to Queue';
+             moveBtn.onclick = (e) => moveToQueue(moveBtn, e);
+             actions.appendChild(moveBtn);
+        }
+    }
+}
+
 document.addEventListener("dragstart", e => { if (e.target.classList.contains('card')) { dragged = e.target; e.target.style.opacity = 0.5; } });
 document.addEventListener("dragend", e => { if (e.target.classList.contains('card')) e.target.style.opacity = ""; });
 const containers = document.querySelectorAll(".column-container");
 containers.forEach(con => {
     con.addEventListener("dragover", e => { e.preventDefault(); con.classList.add('drag-over'); }, false);
     con.addEventListener("dragleave", e => { con.classList.remove('drag-over'); }, false);
-    con.addEventListener("drop", e => { e.preventDefault(); con.classList.remove('drag-over'); if (dragged) con.querySelector('.story-list').appendChild(dragged); });
+    con.addEventListener("drop", e => { 
+        e.preventDefault(); 
+        con.classList.remove('drag-over'); 
+        if (dragged) {
+            con.querySelector('.story-list').appendChild(dragged); 
+            const targetType = con.id === 'queueCol' ? 'queue' : 'backlog';
+            updateCardState(dragged, targetType);
+        }
+    });
 });
 
 document.getElementById("previewBtn").onclick = () => {
