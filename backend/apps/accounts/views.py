@@ -8,6 +8,12 @@ from .forms import SignUpForm
 # Helper to get tokens
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
+    
+    # Add custom claims
+    refresh['username'] = user.username
+    refresh['email'] = user.email
+    # refresh['is_staff'] = user.is_staff # Optional if needed
+
     return {
         'refresh': str(refresh),
         'access': str(refresh.access_token),
@@ -29,9 +35,6 @@ class JWTLoginView(View):
         form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
             user = form.get_user()
-            # Standard Django login (for session-based messages/compatibility if needed)
-            login(request, user)
-            
             # Generate JWT Tokens
             tokens = get_tokens_for_user(user)
             

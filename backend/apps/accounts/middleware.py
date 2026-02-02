@@ -9,9 +9,9 @@ User = get_user_model()
 
 class JWTCookieMiddleware(MiddlewareMixin):
     def process_request(self, request):
-        # If already authenticated by Session (e.g. admin), skip
-        if request.user.is_authenticated:
-            return
+        # We generally expect AuthenticationMiddleware to have run, but since we removed 
+        # session login, request.user should be AnonymousUser initially.
+        # We proceed to check for JWT.
 
         access_token = None
         refresh_token = request.COOKIES.get('refresh_token')
@@ -29,8 +29,17 @@ class JWTCookieMiddleware(MiddlewareMixin):
             try:
                 # Decode access token
                 payload = jwt.decode(access_token, settings.SECRET_KEY, algorithms=['HS256'])
-                user_id = payload.get('user_id')
-                user = User.objects.get(id=user_id)
+                
+                # Stateless User Construction (Optimized - No DB Query)
+                user = User(
+                    id=payload.get('user_id'),
+                    username=payload.get('username', ''),
+                    email=payload.get('email', '')
+                )
+                user.is_active = True
+                user.is_authenticated = True # Manually set for non-persisted user instance
+                # user.is_staff = payload.get('is_staff', False) # If we added this claim
+                
                 request.user = user
                 return
             except jwt.ExpiredSignatureError:
@@ -43,19 +52,36 @@ class JWTCookieMiddleware(MiddlewareMixin):
                         # Attach new token to request for View to set cookie
                         request.new_access_token = new_access_token
                         
-                        # Decode new token to get user
+                        # Decode new token to get user properties
+                        # Note: We need to ensure refresh.access_token has the same claims! 
+                        # SimpleJWT copies claims from refresh to access usually, 
+                        # but custom claims added to refresh above should persist.
                         payload = jwt.decode(new_access_token, settings.SECRET_KEY, algorithms=['HS256'])
-                        user_id = payload.get('user_id')
-                        user = User.objects.get(id=user_id)
+                        
+                        user = User(
+                            id=payload.get('user_id'),
+                            username=payload.get('username', ''),
+                            email=payload.get('email', '')
+                        )
+                        user.is_active = True
+                        user.is_authenticated = True
+                        
                         request.user = user
                         return
                     except Exception as e:
-                        print(f"Refresh failed: {e}")
+                        # print(f"Refresh failed: {e}")
+                        pass
             except Exception as e:
-                print(f"Token error: {e}")
+                # print(f"Token error: {e}")
+                pass
 
-        # Fallback to AnonymousUser
-        request.user = AnonymousUser()
+        # If no valid token was found/processed:
+        # Optimization: For non-admin paths, forcefully set AnonymousUser to avoid 
+        # AuthenticationMiddleware's lazy DB lookup from checking session.
+        if not request.path.startswith('/admin/'):
+             request.user = AnonymousUser()
+        
+        # For admin paths, we leave request.user alone (it might be a lazy session user)
 
     def process_response(self, request, response):
         # If a new access token was generated during request processing, set it
