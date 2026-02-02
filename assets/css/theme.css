@@ -1,0 +1,70 @@
+:root {
+    --bg-body: #f4f5f7;
+    --bg-card: #ffffff;
+    --text-primary: #172b4d;
+    --text-secondary: #5e6c84;
+    --border-color: #dfe1e6;
+    --sidebar-bg: #fafbfc;
+    --navbar-bg: #0052cc;
+    --navbar-text: #ffffff;
+    --modal-bg: #ffffff;
+}
+
+[data-theme="dark"] {
+    --bg-body: #1d2125;
+    --bg-card: #22272b;
+    --text-primary: #b6c2cf;
+    --text-secondary: #9fadbc;
+    --border-color: #454f59;
+    --sidebar-bg: #161a1d;
+    --navbar-bg: #091e42; /* Darker blue or black */
+    --navbar-text: #b6c2cf;
+    --modal-bg: #2c333a;
+}
+
+body {
+    background-color: var(--bg-body);
+    color: var(--text-primary);
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.card, .modal-content, .list-group-item {
+    background-color: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+.card-header, .card-footer, .bg-light {
+    background-color: var(--sidebar-bg) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary) !important;
+}
+
+.text-muted {
+    color: var(--text-secondary) !important;
+}
+
+/* Jira Badges */
+.badge.bg-light {
+    background-color: var(--border-color) !important; 
+    color: var(--text-primary) !important;
+}
+
+/* Navbar overrides */
+.navbar {
+    background-color: var(--navbar-bg) !important;
+}
+.navbar-brand, .nav-link {
+    color: var(--navbar-text) !important;
+}
+
+/* Inputs */
+select, input, textarea {
+    background-color: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}

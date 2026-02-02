@@ -8,7 +8,9 @@ def main():
     """Run administrative tasks."""
     from dotenv import load_dotenv
     load_dotenv()
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'jira_orchestrator.settings')
+    # Add backend/apps to sys.path
+    sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backend', 'apps'))
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings.base')
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

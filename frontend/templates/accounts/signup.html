@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="auth-wrapper" style="width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #0052cc 0%, #0065ff 100%);">
+    <div class="auth-card" style="background: rgba(255, 255, 255, 0.95); padding: 40px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); width: 400px; backdrop-filter: blur(10px);">
+        <h2 style="margin-top: 0; color: #172b4d; text-align: center; margin-bottom: 30px;">Create Account</h2>
+        
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 12px; font-weight: 600; color: #5e6c84; margin-bottom: 6px; text-transform: uppercase;">{{ field.label }}</label>
+                {{ field }}
+                <div style="color: #5e6c84; font-size: 11px; margin-top: 4px;">{{ field.help_text }}</div>
+                {% if field.errors %}
+                <div style="color: #de350b; font-size: 12px; margin-top: 4px;">{{ field.errors.0 }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+            
+            <button type="submit" style="width: 100%; padding: 12px; background: #0052cc; color: white; border: none; border-radius: 4px; font-weight: bold; font-size: 16px; cursor: pointer; transition: background 0.2s;">
+                Sign Up
+            </button>
+        </form>
+
+        <div style="margin-top: 20px; text-align: center; font-size: 14px; color: #5e6c84;">
+            Already have an account? <a href="{% url 'login' %}" style="color: #0052cc; text-decoration: none; font-weight: bold;">Log In</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Input Styling Override */
+    input[type="text"], input[type="password"], input[type="email"] {
+        width: 100%;
+        padding: 10px;
+        border: 2px solid #dfe1e6;
+        border-radius: 4px;
+        background: #fafbfc;
+        font-size: 14px;
+        box-sizing: border-box; /* Fix padding issue */
+        transition: border 0.2s;
+    }
+    input:focus {
+        border-color: #0052cc;
+        outline: none;
+        background: white;
+    }
+    ul { list-style: none; padding: 0; margin: 0; }
+</style>
+{% endblock %}

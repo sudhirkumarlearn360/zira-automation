@@ -55,6 +55,49 @@ class JiraService:
             print(f"Error fetching stories: {e}")
             return []
 
+    def get_story_details(self, story_key):
+        """
+        Fetch single story details including subtasks.
+        """
+        if not self.base_url:
+            return {
+                'key': story_key, 
+                'summary': 'Mock Story Details', 
+                'description': '<p>Mock description for offline mode.</p>',
+                'subtasks': []
+            }
+
+        url = f"{self.base_url}/rest/api/3/issue/{story_key}"
+        try:
+            response = requests.get(url, headers=self.headers, auth=self.auth)
+            response.raise_for_status()
+            data = response.json()
+            
+            fields = data['fields']
+            desc_raw = fields.get('description')
+            desc_html = self._adf_to_html(desc_raw)
+            
+            # Extract subtasks
+            subtasks = []
+            for sub in fields.get('subtasks', []):
+                subtasks.append({
+                    'key': sub['key'],
+                    'summary': sub['fields']['summary'],
+                    'status': sub['fields']['status']['name']
+                })
+
+            return {
+                'key': data['key'],
+                'summary': fields['summary'],
+                'description': desc_html,
+                'status': fields['status']['name'],
+                'subtasks': subtasks,
+                'project_key': fields['project']['key']
+            }
+        except Exception as e:
+            print(f"Error fetching story details: {e}")
+            return None
+
     def create_task(self, parent_epic_key, task_data):
         if not self.base_url:
              return {"key": "MOCK-TASK-NEW", "self": "http://mock/task/new"}

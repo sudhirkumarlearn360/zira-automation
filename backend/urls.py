@@ -15,8 +15,17 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('accounts/', include('accounts.urls')),
     path('jira/', include('jira_app.urls')),
+    path('', include('jira_app.urls')),  # Optional: Map root to jira_app
 ]
+
+if settings.DEBUG and getattr(settings, 'ENABLE_DEBUG_TOOLBAR', False):
+    import debug_toolbar
+    urlpatterns += [
+        path('__debug__/', include(debug_toolbar.urls)),
+    ]

@@ -100,7 +100,7 @@
                     <span class="card-summary" title="{{ story.summary }}">{{ story.summary }}</span>
                 </div>
                 <div class="card-actions">
-                    <button class="action-btn" onclick="viewStoryByIndex({{ forloop.counter0 }})">Details</button>
+                    <a href="{% url 'story_detail' story.key %}" class="action-btn">Details</a>
                     <a href="{{ jira_base_url }}/browse/{{ story.key }}" target="_blank" class="action-btn primary">Jira ↗</a>
                     <span class="move-btn" onclick="moveToQueue(this, event)" title="Move to Queue">❯</span>
                 </div>

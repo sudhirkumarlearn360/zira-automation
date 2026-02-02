@@ -6,7 +6,12 @@ from django.utils.decorators import method_decorator
 import json
 
 from .services.jira_service import JiraService
+from .services.jira_service import JiraService
 from .services.ai_service import AIService
+from django.views.generic import TemplateView
+
+class HomeView(TemplateView):
+    template_name = 'home.html'
 
 class EpicStoriesView(View):
     def get(self, request, epic_key):
@@ -27,6 +32,13 @@ class EpicStoriesView(View):
 class IndexView(View):
     def get(self, request):
         return render(request, 'jira/index.html')
+
+class StoryDetailView(View):
+    def get(self, request, story_key):
+        jira_service = JiraService()
+        story = jira_service.get_story_details(story_key)
+        return render(request, 'jira/story_detail.html', {'story': story})
+
 
 @method_decorator(csrf_exempt, name='dispatch')
 class PreviewTasksView(View):
@@ -50,7 +62,18 @@ class PreviewTasksView(View):
             
             for key in story_keys:
                 story_data = story_map.get(key)
+                
+                # Fallback: If not finding story in bulk fetch (e.g. single story view context), fetch it directly
                 if not story_data:
+                    try:
+                        detail = jira_service.get_story_details(key)
+                        if detail:
+                            story_data = detail
+                    except Exception as e:
+                        print(f"Failed to fetch individual story {key}: {e}")
+
+                if not story_data:
+                    print(f"Skipping {key} - not found.")
                     continue
                 
                 full_text = f"Summary: {story_data['summary']}\nDescription: {story_data['description']}"
