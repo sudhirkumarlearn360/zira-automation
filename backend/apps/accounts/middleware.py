@@ -37,7 +37,7 @@ class JWTCookieMiddleware(MiddlewareMixin):
                     email=payload.get('email', '')
                 )
                 user.is_active = True
-                user.is_authenticated = True # Manually set for non-persisted user instance
+                # user.is_authenticated returns True by default
                 # user.is_staff = payload.get('is_staff', False) # If we added this claim
                 
                 request.user = user
@@ -64,7 +64,7 @@ class JWTCookieMiddleware(MiddlewareMixin):
                             email=payload.get('email', '')
                         )
                         user.is_active = True
-                        user.is_authenticated = True
+                        # user.is_authenticated returns True by default
                         
                         request.user = user
                         return

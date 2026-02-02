@@ -1,51 +1,284 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
-<div class="auth-wrapper" style="width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #0052cc 0%, #0065ff 100%);">
-    <div class="auth-card" style="background: rgba(255, 255, 255, 0.95); padding: 40px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); width: 400px; backdrop-filter: blur(10px);">
-        <h2 style="margin-top: 0; color: #172b4d; text-align: center; margin-bottom: 30px;">Welcome Back</h2>
-        
-        <form method="post">
-            {% csrf_token %}
-            {% for field in form %}
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; font-size: 12px; font-weight: 600; color: #5e6c84; margin-bottom: 6px; text-transform: uppercase;">{{ field.label }}</label>
-                {{ field }}
-                {% if field.errors %}
-                <div style="color: #de350b; font-size: 12px; margin-top: 4px;">{{ field.errors.0 }}</div>
-                {% endif %}
+<div class="auth-split-layout">
+    <!-- Left: Branding & Visuals -->
+    <div class="auth-visual">
+        <div class="visual-content">
+            <h1 class="brand-title">Jira Orchestrator</h1>
+            <p class="brand-tagline">Streamline your workflow. Orchestrate your success.</p>
+            <div class="abstract-shapes">
+                <div class="shape shape-1"></div>
+                <div class="shape shape-2"></div>
             </div>
-            {% endfor %}
-            
-            <button type="submit" style="width: 100%; padding: 12px; background: #0052cc; color: white; border: none; border-radius: 4px; font-weight: bold; font-size: 16px; cursor: pointer; transition: background 0.2s;">
-                Log In
-            </button>
-        </form>
+        </div>
+    </div>
 
-        <div style="margin-top: 20px; text-align: center; font-size: 14px; color: #5e6c84;">
-            <a href="{% url 'password_reset' %}" style="color: #0052cc; text-decoration: none;">Forgot password?</a>
-            <span style="margin: 0 10px;">•</span>
-            <a href="{% url 'signup' %}" style="color: #0052cc; text-decoration: none;">Sign up</a>
+    <!-- Right: Login Form -->
+    <div class="auth-form-container">
+        <div class="form-wrapper">
+            <h2 class="form-title">Welcome Back</h2>
+            <p class="form-subtitle">Please sign in to your account.</p>
+            
+            <form method="post">
+                {% csrf_token %}
+                {% for field in form %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                    <div class="error-msg">{{ field.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                
+                <button type="submit" class="btn-submit">
+                    Sign In <span class="arrow">→</span>
+                </button>
+            </form>
+
+            <div class="form-footer">
+                <a href="{% url 'password_reset' %}" class="link">Forgot Password?</a>
+                <span class="divider"></span>
+                <span>New here? <a href="{% url 'signup' %}" class="link highlight">Create an account</a></span>
+            </div>
         </div>
     </div>
 </div>
 
 <style>
-    /* Input Styling Override */
+    /* Split Layout */
+    .auth-split-layout {
+        display: flex;
+        width: 100%;
+        height: 100vh;
+        overflow: hidden;
+        background: var(--bg-color);
+    }
+
+    /* Left Panel */
+    .auth-visual {
+        flex: 1;
+        background: linear-gradient(135deg, #0747a6 0%, #0052cc 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        overflow: hidden;
+        color: white;
+        padding: 40px;
+    }
+
+    .visual-content {
+        position: relative;
+        z-index: 2;
+        max-width: 400px;
+    }
+
+    .brand-title {
+        font-size: 3rem;
+        font-weight: 800;
+        margin-bottom: 20px;
+        line-height: 1.1;
+        opacity: 0;
+        animation: fadeSlideUp 0.8s forwards 0.2s;
+    }
+
+    .brand-tagline {
+        font-size: 1.2rem;
+        opacity: 0;
+        animation: fadeSlideUp 0.8s forwards 0.4s;
+        line-height: 1.6;
+    }
+
+    /* Abstract Shapes */
+    .shape {
+        position: absolute;
+        border-radius: 50%;
+        opacity: 0.1;
+        background: white;
+    }
+    .shape-1 {
+        width: 300px;
+        height: 300px;
+        top: -100px;
+        right: -50px;
+        animation: float 6s ease-in-out infinite;
+    }
+    .shape-2 {
+        width: 500px;
+        height: 500px;
+        bottom: -200px;
+        left: -100px;
+        animation: float 8s ease-in-out infinite reverse;
+    }
+
+    /* Right Panel */
+    .auth-form-container {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: var(--bg-color); /* Matches theme */
+        padding: 40px;
+    }
+
+    [data-theme="dark"] .auth-form-container {
+        background: #1b2638;
+    }
+
+    .form-wrapper {
+        width: 100%;
+        max-width: 400px;
+        opacity: 0;
+        animation: fadeIn 0.8s forwards 0.5s;
+    }
+
+    .form-title {
+        font-size: 2rem;
+        color: var(--text-color);
+        margin-bottom: 10px;
+    }
+
+    .form-subtitle {
+        color: #6b778c;
+        margin-bottom: 40px;
+        font-size: 1rem;
+    }
+
+    /* Form Styles */
+    .form-group {
+        margin-bottom: 24px;
+    }
+
+    label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: #5e6c84;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    [data-theme="dark"] label { color: #8993a4; }
+
     input[type="text"], input[type="password"], input[type="email"] {
         width: 100%;
-        padding: 10px;
+        padding: 12px 16px;
         border: 2px solid #dfe1e6;
-        border-radius: 4px;
+        border-radius: 6px;
         background: #fafbfc;
-        font-size: 14px;
-        box-sizing: border-box; /* Fix padding issue */
-        transition: border 0.2s;
+        font-size: 16px; /* Prevent zoom on mobile */
+        color: #172b4d;
+        transition: all 0.2s;
+        box-sizing: border-box;
     }
+
+    [data-theme="dark"] input[type="text"], 
+    [data-theme="dark"] input[type="password"] {
+        background: #233044;
+        border-color: #3b475c;
+        color: white;
+    }
+
     input:focus {
         border-color: #0052cc;
-        outline: none;
         background: white;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0, 82, 204, 0.1);
+    }
+
+    [data-theme="dark"] input:focus {
+        background: #2c3b52;
+        border-color: #4c9aff;
+    }
+
+    .error-msg {
+        color: #de350b;
+        font-size: 13px;
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .btn-submit {
+        width: 100%;
+        padding: 14px;
+        background: #0052cc;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .btn-submit:hover {
+        background: #0065ff;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 82, 204, 0.2);
+    }
+
+    .arrow { transition: transform 0.2s; }
+    .btn-submit:hover .arrow { transform: translateX(4px); }
+
+    .form-footer {
+        margin-top: 30px;
+        text-align: center;
+        font-size: 14px;
+        color: #6b778c;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .divider {
+        width: 1px;
+        height: 16px;
+        background: #dfe1e6;
+    }
+
+    .link {
+        color: #5e6c84;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+    .link:hover { color: #0052cc; text-decoration: underline; }
+    
+    .link.highlight { color: #0052cc; font-weight: 600; }
+
+    /* Keyframes */
+    @keyframes fadeSlideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-20px); }
+    }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 768px) {
+        .auth-split-layout { flex-direction: column; }
+        .auth-visual { flex: 0 0 200px; padding: 20px; }
+        .brand-title { font-size: 2rem; }
+        .auth-form-container { flex: 1; padding: 20px; }
     }
 </style>
 {% endblock %}
