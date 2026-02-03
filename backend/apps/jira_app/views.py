@@ -110,7 +110,8 @@ class CreateConfirmedTasksView(View):
                 content = task_item.get('generated_content')
                 
                 # Create Task
-                new_task = jira_service.create_task(epic_key, content)
+                # new_task = jira_service.create_task(epic_key, content)
+                new_task = None # jira_service.create_task(epic_key, content)
                 
                 if new_task:
                     results.append({'key': original_key, 'status': 'CREATED', 'new_task_key': new_task.get('key')})

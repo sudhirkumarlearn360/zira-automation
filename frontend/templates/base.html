@@ -185,11 +185,20 @@
 
         .workspace {
             flex: 1;
-            overflow: hidden;
+            overflow-y: auto; /* Enable vertical scrolling */
+            overflow-x: hidden;
             padding: 20px 40px;
             display: flex;
             gap: 20px;
-            justify-content: center; /* Center content if needed, else remove */
+            justify-content: center;
+        }
+
+        /* Responsive Padding */
+        @media (max-width: 768px) {
+            .workspace {
+                padding: 15px;
+                flex-direction: column;
+            }
         }
         
         /* Auth Page Specials */

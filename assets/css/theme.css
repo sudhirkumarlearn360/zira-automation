@@ -68,3 +68,44 @@ select, input, textarea {
     color: var(--text-primary) !important;
     border-color: var(--border-color) !important;
 }
+
+/* Custom Scrollbar Implementation */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent; 
+}
+
+::-webkit-scrollbar-thumb {
+    background: #dfe1e6; /* Lighter gray for better visibility on light bg */
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #c1c7d0;
+}
+
+/* Dark Mode Scrollbar */
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: #454f59;
+    border-color: transparent;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background-color: #596773;
+}
+
+/* Firefox Support */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #dfe1e6 transparent;
+}
+
+[data-theme="dark"] * {
+    scrollbar-color: #454f59 transparent;
+}
