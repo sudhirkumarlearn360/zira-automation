@@ -222,41 +222,28 @@
     </script>
 </head>
 <body>
-    {% if user.is_authenticated %}
     <!-- Top Navigation Bar -->
     <header class="app-header">
         <div style="display: flex; align-items: center;">
             <a href="/" class="brand">🚀 Jira Orchestrator</a>
             <nav class="nav-links">
-                <a href="/epics/" class="nav-item">📊 Epics & Stories</a>
-                <a href="#" class="nav-item">✅ Tasks</a>
+                <a href="/jira/" class="nav-item">🏠 Home</a>
+                <a href="/jira/epics/" class="nav-item">📊 Epics & Stories</a>
+                <a href="/jira/test-cases/" class="nav-item">🧪 Test Cases</a>
             </nav>
         </div>
 
         <div class="user-actions">
-            <!-- Profile Link -->
-            <a href="#" class="profile-link">
-                <span>{{ user.username }}</span>
-                <span style="opacity: 0.7; font-size: 12px;">(Edit Profile)</span>
-            </a>
-
             <!-- Theme Toggle -->
             <label class="theme-switch" title="Toggle Theme">
                 <input type="checkbox" id="themeCheckbox" onchange="toggleTheme()">
                 <span class="slider round"></span>
             </label>
-
-            <!-- Logout -->
-            <form method="post" action="{% url 'logout' %}" style="display: inline;">
-                {% csrf_token %}
-                <button type="submit" class="logout-btn">Logout</button>
-            </form>
         </div>
     </header>
-    {% endif %}
 
     <main class="app-main">
-        <div class="workspace" style="{% if not user.is_authenticated %}padding:0;{% endif %}">
+        <div class="workspace">
             {% block content %}
             {% endblock %}
         </div>

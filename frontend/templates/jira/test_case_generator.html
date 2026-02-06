@@ -1,0 +1,1192 @@
+{% extends 'base.html' %}
+
+{% block header_extra %}
+    <h2>🧪 Test Case Generator</h2>
+{% endblock %}
+
+{% block content %}
+<style>
+    .tcg-container {
+        width: 100%;
+        max-width: 1400px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding-bottom: 40px;
+        height: 100%;
+        overflow-y: auto;
+    }
+
+    /* Custom scrollbar */
+    .tcg-container::-webkit-scrollbar,
+    .tc-table-container::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    .tcg-container::-webkit-scrollbar-track,
+    .tc-table-container::-webkit-scrollbar-track {
+        background: #f4f5f7;
+        border-radius: 4px;
+    }
+
+    .tcg-container::-webkit-scrollbar-thumb,
+    .tc-table-container::-webkit-scrollbar-thumb {
+        background: #c1c7d0;
+        border-radius: 4px;
+    }
+
+    .tcg-container::-webkit-scrollbar-thumb:hover,
+    .tc-table-container::-webkit-scrollbar-thumb:hover {
+        background: #a5adba;
+    }
+
+    [data-theme="dark"] .tcg-container::-webkit-scrollbar-track,
+    [data-theme="dark"] .tc-table-container::-webkit-scrollbar-track {
+        background: #0b1a30;
+    }
+
+    [data-theme="dark"] .tcg-container::-webkit-scrollbar-thumb,
+    [data-theme="dark"] .tc-table-container::-webkit-scrollbar-thumb {
+        background: #2d3f55;
+    }
+
+    [data-theme="dark"] .tcg-container::-webkit-scrollbar-thumb:hover,
+    [data-theme="dark"] .tc-table-container::-webkit-scrollbar-thumb:hover {
+        background: #3d5a80;
+    }
+
+    /* Source Selection Panel */
+    .source-panel {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(9, 30, 66, 0.1);
+        overflow: hidden;
+    }
+
+    [data-theme="dark"] .source-panel {
+        background: #1e2a3a;
+    }
+
+    .source-tabs {
+        display: flex;
+        background: #f4f5f7;
+        border-bottom: 1px solid #dfe1e6;
+    }
+
+    [data-theme="dark"] .source-tabs {
+        background: #0b1a30;
+        border-color: #2d3f55;
+    }
+
+    .source-tab {
+        flex: 1;
+        padding: 14px 20px;
+        text-align: center;
+        cursor: pointer;
+        font-weight: 600;
+        color: #5e6c84;
+        border: none;
+        background: transparent;
+        transition: all 0.2s;
+        border-bottom: 3px solid transparent;
+    }
+
+    .source-tab:hover {
+        background: rgba(0, 82, 204, 0.05);
+        color: #0052cc;
+    }
+
+    .source-tab.active {
+        background: white;
+        color: #0052cc;
+        border-bottom-color: #0052cc;
+    }
+
+    [data-theme="dark"] .source-tab.active {
+        background: #1e2a3a;
+        color: #4c9aff;
+        border-bottom-color: #4c9aff;
+    }
+
+    .source-content {
+        padding: 20px;
+    }
+
+    .input-row {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+    }
+
+    .input-group {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .input-group label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: #5e6c84;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+    }
+
+    [data-theme="dark"] .input-group label {
+        color: #8993a4;
+    }
+
+    .input-group input, .input-group textarea {
+        width: 100%;
+        padding: 10px 14px;
+        border: 2px solid #dfe1e6;
+        border-radius: 4px;
+        font-size: 14px;
+        transition: border-color 0.2s;
+        box-sizing: border-box;
+    }
+
+    [data-theme="dark"] .input-group input,
+    [data-theme="dark"] .input-group textarea {
+        background: #0b1a30;
+        border-color: #2d3f55;
+        color: #e6e9f0;
+    }
+
+    .input-group input:focus, .input-group textarea:focus {
+        outline: none;
+        border-color: #0052cc;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border-radius: 4px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #0052cc, #2684ff);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #0747a6, #0052cc);
+        transform: translateY(-1px);
+    }
+
+    .btn-primary:disabled {
+        background: #a5adba;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .btn-secondary {
+        background: #f4f5f7;
+        color: #5e6c84;
+        border: 1px solid #dfe1e6;
+    }
+
+    [data-theme="dark"] .btn-secondary {
+        background: #2d3f55;
+        color: #b3d4ff;
+        border-color: #3d5169;
+    }
+
+    .btn-secondary:hover {
+        background: #ebecf0;
+    }
+
+    .btn-success {
+        background: linear-gradient(135deg, #00875a, #36b37e);
+        color: white;
+    }
+
+    .btn-warning {
+        background: linear-gradient(135deg, #ff8b00, #ffab00);
+        color: white;
+    }
+
+    /* Category Tabs */
+    .category-tabs {
+        display: flex;
+        gap: 8px;
+        padding: 16px 20px;
+        background: #f4f5f7;
+        border-bottom: 1px solid #dfe1e6;
+        flex-wrap: wrap;
+    }
+
+    [data-theme="dark"] .category-tabs {
+        background: #0b1a30;
+        border-color: #2d3f55;
+    }
+
+    .category-tab {
+        padding: 10px 16px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        border: 2px solid transparent;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .category-tab.be {
+        background: #deebff;
+        color: #0747a6;
+    }
+    .category-tab.be.active, .category-tab.be:hover {
+        background: #0052cc;
+        color: white;
+    }
+
+    .category-tab.fe {
+        background: #e3fcef;
+        color: #006644;
+    }
+    .category-tab.fe.active, .category-tab.fe:hover {
+        background: #00875a;
+        color: white;
+    }
+
+    .category-tab.qa {
+        background: #fff0b3;
+        color: #ff8b00;
+    }
+    .category-tab.qa.active, .category-tab.qa:hover {
+        background: #ff8b00;
+        color: white;
+    }
+
+    .category-tab.other {
+        background: #dfe1e6;
+        color: #5e6c84;
+    }
+    .category-tab.other.active, .category-tab.other:hover {
+        background: #5e6c84;
+        color: white;
+    }
+
+    .category-count {
+        background: rgba(255,255,255,0.3);
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+    }
+
+    /* Results Panel */
+    .results-panel {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(9, 30, 66, 0.1);
+        overflow: hidden;
+    }
+
+    [data-theme="dark"] .results-panel {
+        background: #1e2a3a;
+    }
+
+    .results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        background: #f4f5f7;
+        border-bottom: 1px solid #dfe1e6;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    [data-theme="dark"] .results-header {
+        background: #0b1a30;
+        border-color: #2d3f55;
+    }
+
+    .results-header h3 {
+        margin: 0;
+        font-size: 16px;
+        color: #172b4d;
+    }
+
+    [data-theme="dark"] .results-header h3 {
+        color: #e6e9f0;
+    }
+
+    .export-buttons {
+        display: flex;
+        gap: 10px;
+    }
+
+    /* Category Section */
+    .category-section {
+        display: none;
+        padding: 20px;
+    }
+
+    .category-section.active {
+        display: block;
+    }
+
+    .category-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #dfe1e6;
+    }
+
+    .category-header h4 {
+        margin: 0;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .category-stories {
+        font-size: 13px;
+        color: #5e6c84;
+        margin-bottom: 16px;
+    }
+
+    .story-chip {
+        display: inline-block;
+        background: #ebecf0;
+        padding: 4px 10px;
+        border-radius: 4px;
+        margin: 2px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    [data-theme="dark"] .story-chip {
+        background: #2d3f55;
+    }
+
+    /* Regenerate Panel */
+    .regenerate-panel {
+        background: #fffae6;
+        border: 1px solid #ffe380;
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin-top: 16px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+
+    [data-theme="dark"] .regenerate-panel {
+        background: #2d3316;
+        border-color: #5c5a20;
+    }
+
+    .regenerate-panel input {
+        flex: 1;
+        padding: 8px 12px;
+        border: 1px solid #dfe1e6;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    [data-theme="dark"] .regenerate-panel input {
+        background: #0b1a30;
+        border-color: #2d3f55;
+        color: #e6e9f0;
+    }
+
+    /* Test Cases Table */
+    .tc-table-container {
+        overflow-x: auto;
+        max-height: calc(100vh - 400px);
+        min-height: 300px;
+        overflow-y: auto;
+        scroll-behavior: smooth;
+    }
+
+    .tc-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .tc-table th {
+        background: #ebecf0;
+        color: #5e6c84;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 11px;
+        padding: 12px 16px;
+        text-align: left;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    [data-theme="dark"] .tc-table th {
+        background: #0b1a30;
+        color: #8993a4;
+    }
+
+    .tc-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #f0f1f3;
+        vertical-align: top;
+        color: #172b4d;
+    }
+
+    [data-theme="dark"] .tc-table td {
+        border-color: #2d3f55;
+        color: #e6e9f0;
+    }
+
+    .tc-table tr:hover td {
+        background: #fafbfc;
+    }
+
+    [data-theme="dark"] .tc-table tr:hover td {
+        background: #253346;
+    }
+
+    .tc-id {
+        font-weight: bold;
+        white-space: nowrap;
+    }
+
+    .tc-id.be { color: #0052cc; }
+    .tc-id.fe { color: #00875a; }
+    .tc-id.qa { color: #ff8b00; }
+    .tc-id.other { color: #5e6c84; }
+
+    .tc-priority {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .tc-priority.high {
+        background: #ffebe6;
+        color: #de350b;
+    }
+
+    .tc-priority.medium {
+        background: #fffae6;
+        color: #ff8b00;
+    }
+
+    .tc-priority.low {
+        background: #e3fcef;
+        color: #00875a;
+    }
+
+    .tc-type {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 11px;
+        font-weight: 500;
+        background: #deebff;
+        color: #0052cc;
+    }
+
+    [data-theme="dark"] .tc-type {
+        background: #0d3d6e;
+        color: #4c9aff;
+    }
+
+    .steps-list {
+        margin: 0;
+        padding-left: 16px;
+    }
+
+    .steps-list li {
+        margin-bottom: 4px;
+    }
+
+    /* Loading State */
+    .loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+    }
+
+    [data-theme="dark"] .loading-overlay {
+        background: rgba(11, 26, 48, 0.9);
+    }
+
+    .loading-overlay.active {
+        display: flex;
+    }
+
+    .spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #dfe1e6;
+        border-top-color: #0052cc;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+        margin-top: 16px;
+        font-size: 16px;
+        color: #5e6c84;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #5e6c84;
+    }
+
+    .empty-state .icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+    }
+
+    /* Source Info Badge */
+    .source-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #deebff;
+        color: #0052cc;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 500;
+    }
+
+    [data-theme="dark"] .source-badge {
+        background: #0d3d6e;
+        color: #4c9aff;
+    }
+
+    /* Summary Stats */
+    .summary-stats {
+        display: flex;
+        gap: 16px;
+        padding: 16px 20px;
+        background: #e3fcef;
+        flex-wrap: wrap;
+    }
+
+    [data-theme="dark"] .summary-stats {
+        background: #1d3d2d;
+    }
+
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: #00875a;
+    }
+
+    [data-theme="dark"] .stat-item {
+        color: #36b37e;
+    }
+
+    .stat-item strong {
+        font-size: 18px;
+    }
+</style>
+
+<div class="tcg-container">
+    <!-- Source Selection Panel -->
+    <div class="source-panel">
+        <div class="source-tabs">
+            <button class="source-tab active" data-type="epic" onclick="switchTab('epic')">
+                📊 Epic (All Stories)
+            </button>
+            <button class="source-tab" data-type="story" onclick="switchTab('story')">
+                📝 Single Story
+            </button>
+            <button class="source-tab" data-type="task" onclick="switchTab('task')">
+                ✅ Task
+            </button>
+        </div>
+        <div class="source-content">
+            <div class="input-row">
+                <div class="input-group" style="flex: 2;">
+                    <label id="keyLabel">Epic Key</label>
+                    <input type="text" id="sourceKey" placeholder="e.g., CAR-13494" />
+                </div>
+                <div class="input-group" style="flex: 3;">
+                    <label>Additional Context (Optional)</label>
+                    <input type="text" id="initialPrompt" placeholder="e.g., Focus on security tests, include edge cases..." />
+                </div>
+                <button class="btn btn-primary" id="fetchBtn" onclick="fetchAndGenerate()">
+                    <span>🚀</span> Generate Test Cases
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Panel (Categorized for Epic) -->
+    <div class="results-panel" id="resultsPanel" style="display: none;">
+        <div class="results-header">
+            <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                <h3>📋 Generated Test Cases</h3>
+                <span class="source-badge" id="sourceBadge"></span>
+            </div>
+            <div class="export-buttons">
+                <button class="btn btn-secondary" onclick="exportAllTestCases('excel')">
+                    📊 Export All (Excel)
+                </button>
+                <button class="btn btn-secondary" onclick="exportAllTestCases('word')">
+                    📄 Export All (Word)
+                </button>
+            </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="summary-stats" id="summaryStats">
+            <div class="stat-item">
+                <strong id="totalStories">0</strong> Stories
+            </div>
+            <div class="stat-item">
+                <strong id="totalTestCases">0</strong> Test Cases
+            </div>
+        </div>
+
+        <!-- Category Tabs (for Epic mode) -->
+        <div class="category-tabs" id="categoryTabs">
+            <div class="category-tab be active" data-category="BE" onclick="switchCategory('BE')">
+                🔧 Backend <span class="category-count" id="beCount">0</span>
+            </div>
+            <div class="category-tab fe" data-category="FE" onclick="switchCategory('FE')">
+                🎨 Frontend <span class="category-count" id="feCount">0</span>
+            </div>
+            <div class="category-tab qa" data-category="QA" onclick="switchCategory('QA')">
+                🧪 QA <span class="category-count" id="qaCount">0</span>
+            </div>
+            <div class="category-tab other" data-category="OTHER" onclick="switchCategory('OTHER')">
+                📦 Other <span class="category-count" id="otherCount">0</span>
+            </div>
+        </div>
+
+        <!-- Category Sections -->
+        <div id="categorySections">
+            <!-- BE Section -->
+            <div class="category-section active" id="section-BE">
+                <div class="category-header">
+                    <h4>🔧 Backend Test Cases</h4>
+                    <span id="beStoryCount">0 stories</span>
+                </div>
+                <div class="category-stories" id="beStories"></div>
+                <div class="tc-table-container">
+                    <table class="tc-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Story</th>
+                                <th>Title</th>
+                                <th>Steps</th>
+                                <th>Expected</th>
+                                <th>Priority</th>
+                            </tr>
+                        </thead>
+                        <tbody id="beTestCases"></tbody>
+                    </table>
+                </div>
+                <div class="regenerate-panel">
+                    <input type="text" id="bePrompt" placeholder="Regenerate with: e.g., Add more API validation tests..." />
+                    <button class="btn btn-warning" onclick="regenerateCategory('BE')">🔄 Regenerate BE</button>
+                </div>
+            </div>
+
+            <!-- FE Section -->
+            <div class="category-section" id="section-FE">
+                <div class="category-header">
+                    <h4>🎨 Frontend Test Cases</h4>
+                    <span id="feStoryCount">0 stories</span>
+                </div>
+                <div class="category-stories" id="feStories"></div>
+                <div class="tc-table-container">
+                    <table class="tc-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Story</th>
+                                <th>Title</th>
+                                <th>Steps</th>
+                                <th>Expected</th>
+                                <th>Priority</th>
+                            </tr>
+                        </thead>
+                        <tbody id="feTestCases"></tbody>
+                    </table>
+                </div>
+                <div class="regenerate-panel">
+                    <input type="text" id="fePrompt" placeholder="Regenerate with: e.g., Add accessibility tests..." />
+                    <button class="btn btn-warning" onclick="regenerateCategory('FE')">🔄 Regenerate FE</button>
+                </div>
+            </div>
+
+            <!-- QA Section -->
+            <div class="category-section" id="section-QA">
+                <div class="category-header">
+                    <h4>🧪 QA Test Cases</h4>
+                    <span id="qaStoryCount">0 stories</span>
+                </div>
+                <div class="category-stories" id="qaStories"></div>
+                <div class="tc-table-container">
+                    <table class="tc-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Story</th>
+                                <th>Title</th>
+                                <th>Steps</th>
+                                <th>Expected</th>
+                                <th>Priority</th>
+                            </tr>
+                        </thead>
+                        <tbody id="qaTestCases"></tbody>
+                    </table>
+                </div>
+                <div class="regenerate-panel">
+                    <input type="text" id="qaPrompt" placeholder="Regenerate with: e.g., Focus on regression tests..." />
+                    <button class="btn btn-warning" onclick="regenerateCategory('QA')">🔄 Regenerate QA</button>
+                </div>
+            </div>
+
+            <!-- OTHER Section -->
+            <div class="category-section" id="section-OTHER">
+                <div class="category-header">
+                    <h4>📦 Other Test Cases</h4>
+                    <span id="otherStoryCount">0 stories</span>
+                </div>
+                <div class="category-stories" id="otherStories"></div>
+                <div class="tc-table-container">
+                    <table class="tc-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Story</th>
+                                <th>Title</th>
+                                <th>Steps</th>
+                                <th>Expected</th>
+                                <th>Priority</th>
+                            </tr>
+                        </thead>
+                        <tbody id="otherTestCases"></tbody>
+                    </table>
+                </div>
+                <div class="regenerate-panel">
+                    <input type="text" id="otherPrompt" placeholder="Regenerate with: e.g., Add deployment verification..." />
+                    <button class="btn btn-warning" onclick="regenerateCategory('OTHER')">🔄 Regenerate</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Flat View (for Story/Task mode) -->
+        <div id="flatView" style="display: none; padding: 20px;">
+            <div class="tc-table-container">
+                <table class="tc-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Description</th>
+                            <th>Steps</th>
+                            <th>Expected Result</th>
+                            <th>Priority</th>
+                            <th>Type</th>
+                        </tr>
+                    </thead>
+                    <tbody id="flatTestCases"></tbody>
+                </table>
+            </div>
+            <div class="regenerate-panel" style="margin-top: 16px;">
+                <input type="text" id="flatPrompt" placeholder="Refine: e.g., Add more edge case tests..." />
+                <button class="btn btn-success" onclick="refineTestCases()">✨ Refine</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" id="emptyState">
+        <div class="icon">🧪</div>
+        <h3>AI Test Case Generator</h3>
+        <p>Select a source type, enter the Jira key, and generate comprehensive test cases.</p>
+        <p style="font-size: 13px; color: #a5adba; margin-top: 10px;">
+            <strong>Epic Mode:</strong> Categorizes stories by BE/FE/QA and generates test cases for each<br>
+            <strong>Story/Task Mode:</strong> Generates detailed test cases for a single item
+        </p>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">Generating test cases...</div>
+</div>
+
+<script>
+    let currentSourceType = 'epic';
+    let currentCategory = 'BE';
+    let categorizedData = null;
+    let flatTestCases = [];
+    let originalStories = [];
+    let originalContent = '';
+
+    const labels = { epic: 'Epic Key', story: 'Story Key', task: 'Task Key' };
+    const placeholders = { epic: 'e.g., CAR-13494', story: 'e.g., CAR-13495', task: 'e.g., CAR-13496' };
+
+    function switchTab(type) {
+        currentSourceType = type;
+        document.querySelectorAll('.source-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.type === type);
+        });
+        document.getElementById('keyLabel').textContent = labels[type];
+        document.getElementById('sourceKey').placeholder = placeholders[type];
+    }
+
+    function switchCategory(cat) {
+        currentCategory = cat;
+        document.querySelectorAll('.category-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.category === cat);
+        });
+        document.querySelectorAll('.category-section').forEach(sec => {
+            sec.classList.toggle('active', sec.id === `section-${cat}`);
+        });
+    }
+
+    function showLoading(text) {
+        document.getElementById('loadingText').textContent = text;
+        document.getElementById('loadingOverlay').classList.add('active');
+    }
+
+    function hideLoading() {
+        document.getElementById('loadingOverlay').classList.remove('active');
+    }
+
+    function fetchAndGenerate() {
+        const sourceKey = document.getElementById('sourceKey').value.trim();
+        const prompt = document.getElementById('initialPrompt').value.trim();
+
+        if (!sourceKey) {
+            alert('Please enter a ' + labels[currentSourceType]);
+            return;
+        }
+
+        showLoading('Analyzing stories and generating categorized test cases...');
+
+        fetch('/jira/generate-test-cases/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                source_type: currentSourceType,
+                source_key: sourceKey,
+                prompt: prompt,
+                categorized: currentSourceType === 'epic'
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            hideLoading();
+            
+            if (data.error) {
+                alert('Error: ' + data.error);
+                return;
+            }
+
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('resultsPanel').style.display = 'block';
+            document.getElementById('sourceBadge').innerHTML = 
+                `<span>${currentSourceType.toUpperCase()}</span>: ${data.source_key}`;
+
+            if (data.categorized && data.categories) {
+                // Categorized view for Epic
+                categorizedData = data.categories;
+                originalStories = data.original_stories || [];
+                renderCategorizedView(data);
+            } else {
+                // Flat view for Story/Task
+                flatTestCases = data.test_cases || [];
+                originalContent = data.original_content || '';
+                renderFlatView(data);
+            }
+        })
+        .catch(err => {
+            hideLoading();
+            alert('Network error: ' + err);
+        });
+    }
+
+    function renderCategorizedView(data) {
+        document.getElementById('categoryTabs').style.display = 'flex';
+        document.getElementById('categorySections').style.display = 'block';
+        document.getElementById('flatView').style.display = 'none';
+
+        const categories = data.categories;
+        const summary = data.summary || {};
+
+        // Update summary stats
+        document.getElementById('totalStories').textContent = summary.total_stories || 0;
+        document.getElementById('totalTestCases').textContent = summary.total_test_cases || 0;
+
+        // Render each category
+        ['BE', 'FE', 'QA', 'OTHER'].forEach(cat => {
+            const catData = categories[cat] || { stories: [], test_cases: [] };
+            const testCases = catData.test_cases || [];
+            const stories = catData.stories || [];
+
+            // Update count badge
+            document.getElementById(`${cat.toLowerCase()}Count`).textContent = testCases.length;
+            document.getElementById(`${cat.toLowerCase()}StoryCount`).textContent = `${stories.length} stories`;
+
+            // Render stories chips
+            const storiesContainer = document.getElementById(`${cat.toLowerCase()}Stories`);
+            storiesContainer.innerHTML = stories.map(s => `<span class="story-chip">${s}</span>`).join('');
+
+            // Render test cases table
+            const tbody = document.getElementById(`${cat.toLowerCase()}TestCases`);
+            tbody.innerHTML = testCases.map(tc => `
+                <tr>
+                    <td class="tc-id ${cat.toLowerCase()}">${tc.id || '-'}</td>
+                    <td><span class="story-chip">${tc.story_key || '-'}</span></td>
+                    <td><strong>${tc.title || '-'}</strong></td>
+                    <td>
+                        <ol class="steps-list">
+                            ${(tc.steps || []).map(s => `<li>${s}</li>`).join('')}
+                        </ol>
+                    </td>
+                    <td>${tc.expected_result || '-'}</td>
+                    <td><span class="tc-priority ${(tc.priority || '').toLowerCase()}">${tc.priority || '-'}</span></td>
+                </tr>
+            `).join('');
+        });
+
+        // Show first category with test cases
+        const firstCatWithData = ['BE', 'FE', 'QA', 'OTHER'].find(cat => 
+            (categories[cat]?.test_cases?.length || 0) > 0
+        ) || 'BE';
+        switchCategory(firstCatWithData);
+    }
+
+    function renderFlatView(data) {
+        document.getElementById('categoryTabs').style.display = 'none';
+        document.getElementById('categorySections').style.display = 'none';
+        document.getElementById('flatView').style.display = 'block';
+
+        document.getElementById('totalStories').textContent = '1';
+        document.getElementById('totalTestCases').textContent = flatTestCases.length;
+
+        const tbody = document.getElementById('flatTestCases');
+        tbody.innerHTML = flatTestCases.map(tc => `
+            <tr>
+                <td class="tc-id">${tc.id || '-'}</td>
+                <td><strong>${tc.title || '-'}</strong></td>
+                <td>${tc.description || '-'}</td>
+                <td>
+                    <ol class="steps-list">
+                        ${(tc.steps || []).map(s => `<li>${s}</li>`).join('')}
+                    </ol>
+                </td>
+                <td>${tc.expected_result || '-'}</td>
+                <td><span class="tc-priority ${(tc.priority || '').toLowerCase()}">${tc.priority || '-'}</span></td>
+                <td><span class="tc-type">${tc.type || '-'}</span></td>
+            </tr>
+        `).join('');
+    }
+
+    function regenerateCategory(category) {
+        const prompt = document.getElementById(`${category.toLowerCase()}Prompt`).value.trim();
+        if (!prompt) {
+            alert('Please enter a prompt for regeneration');
+            return;
+        }
+
+        const catData = categorizedData[category] || {};
+        const stories = originalStories.filter(s => (catData.stories || []).includes(s.key));
+
+        showLoading(`Regenerating ${category} test cases...`);
+
+        fetch('/jira/regenerate-category/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                category: category,
+                stories: stories,
+                test_cases: catData.test_cases || [],
+                prompt: prompt,
+                original_context: ''
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            hideLoading();
+            
+            if (data.error) {
+                alert('Error: ' + data.error);
+                return;
+            }
+
+            // Update the category's test cases
+            categorizedData[category].test_cases = data.test_cases || [];
+            
+            // Clear prompt
+            document.getElementById(`${category.toLowerCase()}Prompt`).value = '';
+
+            // Re-render
+            renderCategorizedView({ categories: categorizedData, summary: { 
+                total_stories: originalStories.length,
+                total_test_cases: Object.values(categorizedData).reduce((sum, cat) => sum + (cat.test_cases?.length || 0), 0)
+            }});
+            
+            // Show changes made
+            if (data.changes_made && data.changes_made.length) {
+                alert('Changes applied:\n• ' + data.changes_made.join('\n• '));
+            }
+        })
+        .catch(err => {
+            hideLoading();
+            alert('Network error: ' + err);
+        });
+    }
+
+    function refineTestCases() {
+        const prompt = document.getElementById('flatPrompt').value.trim();
+        if (!prompt) {
+            alert('Please enter a refinement prompt');
+            return;
+        }
+
+        showLoading('Refining test cases...');
+
+        fetch('/jira/refine-test-cases/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                test_cases: flatTestCases,
+                prompt: prompt,
+                original_content: originalContent
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            hideLoading();
+            if (data.error) {
+                alert('Error: ' + data.error);
+                return;
+            }
+            flatTestCases = data.test_cases || [];
+            document.getElementById('flatPrompt').value = '';
+            renderFlatView({ test_cases: flatTestCases });
+        })
+        .catch(err => {
+            hideLoading();
+            alert('Network error: ' + err);
+        });
+    }
+
+    function exportAllTestCases(format) {
+        let allTestCases = [];
+        
+        if (categorizedData) {
+            ['BE', 'FE', 'QA', 'OTHER'].forEach(cat => {
+                const catData = categorizedData[cat] || {};
+                (catData.test_cases || []).forEach(tc => {
+                    allTestCases.push({ ...tc, category: cat });
+                });
+            });
+        } else {
+            allTestCases = flatTestCases;
+        }
+
+        if (allTestCases.length === 0) {
+            alert('No test cases to export');
+            return;
+        }
+
+        showLoading(`Exporting to ${format === 'excel' ? 'Excel' : 'Word'}...`);
+
+        fetch('/jira/export-test-cases/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                test_cases: allTestCases,
+                format: format,
+                source_info: `${currentSourceType}: ${document.getElementById('sourceKey').value}`
+            })
+        })
+        .then(res => {
+            hideLoading();
+            
+            // Check if response is OK
+            if (!res.ok) {
+                return res.json().then(data => { 
+                    throw new Error(data.error || `Export failed with status ${res.status}`); 
+                });
+            }
+            
+            // Check content type
+            const contentType = res.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                return res.json().then(data => { 
+                    throw new Error(data.error || 'Unexpected JSON response'); 
+                });
+            }
+            
+            return res.blob();
+        })
+        .then(blob => {
+            // Create download
+            const filename = format === 'excel' ? 'test_cases.xlsx' : 'test_cases.docx';
+            const url = window.URL.createObjectURL(blob);
+            
+            // Create and trigger download link
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            
+            // Cleanup after a short delay
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 100);
+            
+            console.log(`Downloaded ${filename} successfully`);
+        })
+        .catch(err => {
+            hideLoading();
+            console.error('Export error:', err);
+            alert('Export error: ' + err.message);
+        });
+    }
+</script>
+{% endblock %}

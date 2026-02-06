@@ -1,70 +1,239 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div style="width: 100%; height: 100%; overflow-y: auto;">
-    {% if user.is_authenticated %}
-    <!-- Authenticated User Dashboard -->
-    <div style="max-width: 1200px; margin: 0 auto; padding: 40px;">
-        <h1 style="font-size: 28px; margin-bottom: 30px;">Welcome back, {{ user.username }}! 👋</h1>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-            <!-- Epics Card -->
-            <a href="{% url 'index' %}" style="text-decoration: none; color: inherit;">
-                <div style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #dfe1e6; transition: transform 0.2s, box-shadow 0.2s;">
-                    <h3 style="margin-top: 0; color: #0052cc;">📊 Epics & Stories</h3>
-                    <p style="color: #5e6c84; font-size: 14px;">Manage your project epics, stories, and track progress.</p>
-                </div>
-            </a>
+<style>
+    .dashboard {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 40px 20px;
+    }
 
-            <!-- Tasks Card (Placeholder) -->
-            <div style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #dfe1e6;">
-                <h3 style="margin-top: 0; color: #0052cc;">✅ Assigned to Me</h3>
-                <p style="color: #5e6c84; font-size: 14px;">View tasks assigned to you across all projects.</p>
-                <span style="font-size: 12px; background: #ebecf0; padding: 2px 6px; border-radius: 3px;">Coming Soon</span>
-            </div>
+    .dashboard-header {
+        text-align: center;
+        margin-bottom: 50px;
+    }
 
-            <!-- Recent Activity (Placeholder) -->
-            <div style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #dfe1e6;">
-                <h3 style="margin-top: 0; color: #0052cc;">🕒 Recent Activity</h3>
-                <p style="color: #5e6c84; font-size: 14px;">See what's happening in your team.</p>
-                <div style="margin-top: 15px; font-size: 13px; color: #172b4d;"> 
-                    • You logged in just now
-                </div>
-            </div>
+    .dashboard-header h1 {
+        font-size: 36px;
+        color: #0052cc;
+        margin-bottom: 12px;
+        font-weight: 700;
+    }
+
+    .dashboard-header p {
+        font-size: 18px;
+        color: #5e6c84;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 24px;
+        margin-bottom: 40px;
+    }
+
+    .feature-card {
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e4e6eb;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0, 82, 204, 0.15);
+        border-color: #0052cc;
+    }
+
+    .feature-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #0052cc, #36b37e);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .feature-card:hover::before {
+        opacity: 1;
+    }
+
+    .feature-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+    }
+
+    .feature-card h3 {
+        font-size: 22px;
+        color: #172b4d;
+        margin: 0 0 12px 0;
+        font-weight: 600;
+    }
+
+    .feature-card p {
+        font-size: 15px;
+        color: #5e6c84;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .feature-badge {
+        display: inline-block;
+        background: #e3fcef;
+        color: #00875a;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-top: 12px;
+    }
+
+    .feature-badge.ai {
+        background: #deebff;
+        color: #0052cc;
+    }
+
+    .feature-badge.coming {
+        background: #ebecf0;
+        color: #5e6c84;
+    }
+
+    /* Dark mode */
+    [data-theme="dark"] .feature-card {
+        background: #1a2a3d;
+        border-color: #2d3f55;
+    }
+
+    [data-theme="dark"] .feature-card:hover {
+        border-color: #4c9aff;
+        box-shadow: 0 8px 24px rgba(76, 154, 255, 0.15);
+    }
+
+    [data-theme="dark"] .feature-card h3 {
+        color: #e6e9f0;
+    }
+
+    [data-theme="dark"] .feature-card p {
+        color: #a5adba;
+    }
+
+    [data-theme="dark"] .dashboard-header h1 {
+        color: #4c9aff;
+    }
+
+    [data-theme="dark"] .dashboard-header p {
+        color: #a5adba;
+    }
+
+    .quick-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-top: 40px;
+        padding: 24px;
+        background: linear-gradient(135deg, #f4f5f7 0%, #ebecf0 100%);
+        border-radius: 12px;
+    }
+
+    [data-theme="dark"] .quick-stats {
+        background: linear-gradient(135deg, #0b1a30 0%, #1a2a3d 100%);
+    }
+
+    .stat-box {
+        text-align: center;
+        padding: 16px;
+    }
+
+    .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #0052cc;
+    }
+
+    .stat-label {
+        font-size: 13px;
+        color: #5e6c84;
+        margin-top: 4px;
+    }
+
+    [data-theme="dark"] .stat-value {
+        color: #4c9aff;
+    }
+
+    [data-theme="dark"] .stat-label {
+        color: #a5adba;
+    }
+</style>
+
+<div class="dashboard">
+    <div class="dashboard-header">
+        <h1>🚀 Jira Orchestrator</h1>
+        <p>AI-powered project management toolkit for agile teams. Analyze epics, generate test cases, and streamline your workflow.</p>
+    </div>
+
+    <div class="feature-grid">
+        <!-- Epics & Stories -->
+        <a href="/jira/epics/" class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3>Epics & Stories</h3>
+            <p>View and manage your project epics with a Kanban-style board. Drag and drop stories, track progress, and visualize your sprint.</p>
+            <span class="feature-badge">Live Data</span>
+        </a>
+
+        <!-- AI Test Case Generator -->
+        <a href="/jira/test-cases/" class="feature-card">
+            <div class="feature-icon">🧪</div>
+            <h3>AI Test Case Generator</h3>
+            <p>Generate comprehensive test cases from epics, stories, or tasks. Categorized by Backend, Frontend, QA with export to Excel & Word.</p>
+            <span class="feature-badge ai">AI Powered</span>
+        </a>
+
+        <!-- Story Detail View -->
+        <a href="/jira/epics/" class="feature-card">
+            <div class="feature-icon">📝</div>
+            <h3>Story Details</h3>
+            <p>Deep dive into individual stories with AI-generated task breakdowns, acceptance criteria, and story analysis.</p>
+            <span class="feature-badge ai">AI Powered</span>
+        </a>
+
+        <!-- AI Task Generation -->
+        <a href="/jira/epics/" class="feature-card">
+            <div class="feature-icon">✨</div>
+            <h3>AI Task Generation</h3>
+            <p>Automatically break down stories into actionable tasks. Let AI analyze your requirements and suggest implementation steps.</p>
+            <span class="feature-badge ai">AI Powered</span>
+        </a>
+    </div>
+
+    <div class="quick-stats">
+        <div class="stat-box">
+            <div class="stat-value">🎯</div>
+            <div class="stat-label">Epic Analysis</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value">📋</div>
+            <div class="stat-label">Test Case Export</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value">🤖</div>
+            <div class="stat-label">AI Integration</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value">📊</div>
+            <div class="stat-label">Kanban Boards</div>
         </div>
     </div>
-    {% else %}
-    <!-- Guest Landing Page -->
-    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; text-align: center; padding: 20px;">
-        <h1 style="font-size: 48px; color: #0052cc; margin-bottom: 20px; font-weight: 800;">Jira Orchestrator</h1>
-        <p style="font-size: 20px; color: #5e6c84; max-width: 600px; line-height: 1.5; margin-bottom: 40px;">
-            Manage your agile projects with ease. Streamline your workflow, track stories, and collaborate effectively.
-        </p>
-        
-        <div style="display: flex; gap: 20px;">
-            <a href="{% url 'login' %}" style="display: inline-block; padding: 12px 30px; background: #0052cc; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; transition: background 0.2s;">
-                Log In
-            </a>
-            <a href="{% url 'signup' %}" style="display: inline-block; padding: 12px 30px; background: white; color: #0052cc; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; border: 2px solid #0052cc; transition: background 0.2s;">
-                Sign Up
-            </a>
-        </div>
-
-        <div style="margin-top: 60px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; max-width: 1000px; width: 100%;">
-            <div>
-                <h3 style="color: #172b4d;">🚀 Agile Boards</h3>
-                <p style="color: #5e6c84; font-size: 14px;">Visualise workflow and track progress.</p>
-            </div>
-            <div>
-                <h3 style="color: #172b4d;">🤖 AI Powered</h3>
-                <p style="color: #5e6c84; font-size: 14px;">Generate stories and tasks automatically.</p>
-            </div>
-            <div>
-                <h3 style="color: #172b4d;">🔒 Secure</h3>
-                <p style="color: #5e6c84; font-size: 14px;">Enterprise-grade security and authentication.</p>
-            </div>
-        </div>
-    </div>
-    {% endif %}
 </div>
 {% endblock %}

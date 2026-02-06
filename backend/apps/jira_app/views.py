@@ -122,3 +122,324 @@ class CreateConfirmedTasksView(View):
             
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
+
+
+# ==================== TEST CASE GENERATOR VIEWS ====================
+
+class TestCaseGeneratorView(View):
+    """Main page for Test Case Generator"""
+    def get(self, request):
+        import os
+        jira_base_url = os.environ.get('JIRA_URL', '')
+        return render(request, 'jira/test_case_generator.html', {
+            'jira_base_url': jira_base_url
+        })
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class GenerateTestCasesView(View):
+    """Generate test cases from story/epic/task content"""
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            source_type = data.get('source_type', 'story')  # epic, story, task
+            source_key = data.get('source_key', '')
+            user_prompt = data.get('prompt', '')
+            use_categorized = data.get('categorized', True)  # Default to categorized for epic
+            
+            jira_service = JiraService()
+            ai_service = AIService()
+            
+            # Fetch content based on source type
+            content = ""
+            source_data = {}
+            
+            if source_type == 'epic':
+                # Fetch all stories for the epic
+                stories = jira_service.get_stories_for_epic(source_key)
+                stories_for_ai = [
+                    {'key': s['key'], 'summary': s['summary'], 'description': s.get('description', '')}
+                    for s in stories
+                ]
+                source_data = {'epic_key': source_key, 'story_count': len(stories), 'stories': stories}
+                
+                if use_categorized:
+                    # Use categorized generation for Epic
+                    result = ai_service.generate_categorized_epic_test_cases(stories_for_ai, user_prompt)
+                    
+                    return JsonResponse({
+                        'success': True,
+                        'source_type': source_type,
+                        'source_key': source_key,
+                        'source_data': source_data,
+                        'categorized': True,
+                        'categories': result.get('categories', {}),
+                        'summary': result.get('summary', {}),
+                        'original_stories': stories_for_ai
+                    })
+                else:
+                    # Flat generation
+                    content_parts = []
+                    for story in stories:
+                        content_parts.append(f"Story {story['key']}: {story['summary']}\n{story.get('description', '')}")
+                    content = "\n\n---\n\n".join(content_parts)
+                    result = ai_service.generate_test_cases(content, source_type, user_prompt)
+            else:
+                # Single story or task
+                story = jira_service.get_story_details(source_key)
+                if story:
+                    content = f"Summary: {story['summary']}\nDescription: {story.get('description', '')}"
+                    source_data = story
+                else:
+                    return JsonResponse({'error': f'Could not fetch {source_type}: {source_key}'}, status=404)
+                
+                result = ai_service.generate_test_cases(content, source_type, user_prompt)
+            
+            return JsonResponse({
+                'success': True,
+                'source_type': source_type,
+                'source_key': source_key,
+                'source_data': source_data,
+                'categorized': False,
+                'test_cases': result.get('test_cases', []),
+                'summary': result.get('summary', ''),
+                'original_content': content
+            })
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class RefineTestCasesView(View):
+    """Refine existing test cases with additional prompt"""
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            current_test_cases = data.get('test_cases', [])
+            refinement_prompt = data.get('prompt', '')
+            original_content = data.get('original_content', '')
+            
+            ai_service = AIService()
+            result = ai_service.refine_test_cases(current_test_cases, refinement_prompt, original_content)
+            
+            return JsonResponse({
+                'success': True,
+                'test_cases': result.get('test_cases', []),
+                'changes_made': result.get('changes_made', [])
+            })
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class RegenerateCategoryTestCasesView(View):
+    """Regenerate test cases for a specific category (BE/FE/QA/OTHER)"""
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            category = data.get('category', '')  # BE, FE, QA, OTHER
+            stories = data.get('stories', [])
+            current_test_cases = data.get('test_cases', [])
+            user_prompt = data.get('prompt', '')
+            original_context = data.get('original_context', '')
+            
+            if not category:
+                return JsonResponse({'error': 'Category is required'}, status=400)
+            
+            ai_service = AIService()
+            result = ai_service.regenerate_category_test_cases(
+                category, stories, current_test_cases, user_prompt, original_context
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'category': category,
+                'test_cases': result.get('test_cases', []),
+                'changes_made': result.get('changes_made', [])
+            })
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ExportTestCasesView(View):
+    """Export test cases to Excel or Word format"""
+    def post(self, request):
+        from django.http import HttpResponse
+        import io
+        import traceback
+        
+        try:
+            data = json.loads(request.body)
+            test_cases = data.get('test_cases', [])
+            export_format = data.get('format', 'excel')  # excel or word
+            source_info = data.get('source_info', '')
+            
+            print(f"[EXPORT] Format: {export_format}, Test Cases: {len(test_cases)}")
+            
+            if export_format == 'excel':
+                return self._export_excel(test_cases, source_info)
+            else:
+                return self._export_word(test_cases, source_info)
+                
+        except Exception as e:
+            print(f"[EXPORT ERROR] {str(e)}")
+            print(traceback.format_exc())
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    def _export_excel(self, test_cases, source_info):
+        from django.http import HttpResponse
+        import io
+        import traceback
+        
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        except ImportError:
+            return JsonResponse({'error': 'openpyxl not installed. Run: pip install openpyxl'}, status=500)
+        
+        try:
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Test Cases"
+            
+            # Header styling
+            header_font = Font(bold=True, color="FFFFFF")
+            header_fill = PatternFill(start_color="0052CC", end_color="0052CC", fill_type="solid")
+            thin_border = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            )
+            
+            # Headers
+            headers = ['ID', 'Title', 'Description', 'Preconditions', 'Steps', 'Expected Result', 'Priority', 'Type']
+            for col, header in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+                cell.border = thin_border
+            
+            # Data rows
+            for row, tc in enumerate(test_cases, 2):
+                # Handle preconditions and steps that might be strings or lists
+                preconditions = tc.get('preconditions', [])
+                if isinstance(preconditions, list):
+                    preconditions_str = '\n'.join(str(p) for p in preconditions)
+                else:
+                    preconditions_str = str(preconditions) if preconditions else ''
+                
+                steps = tc.get('steps', [])
+                if isinstance(steps, list):
+                    steps_str = '\n'.join(str(s) for s in steps)
+                else:
+                    steps_str = str(steps) if steps else ''
+                
+                ws.cell(row=row, column=1, value=str(tc.get('id', ''))).border = thin_border
+                ws.cell(row=row, column=2, value=str(tc.get('title', ''))).border = thin_border
+                ws.cell(row=row, column=3, value=str(tc.get('description', ''))).border = thin_border
+                ws.cell(row=row, column=4, value=preconditions_str).border = thin_border
+                ws.cell(row=row, column=5, value=steps_str).border = thin_border
+                ws.cell(row=row, column=6, value=str(tc.get('expected_result', ''))).border = thin_border
+                ws.cell(row=row, column=7, value=str(tc.get('priority', ''))).border = thin_border
+                ws.cell(row=row, column=8, value=str(tc.get('type', tc.get('category', '')))).border = thin_border
+            
+            # Auto-adjust column widths (safely)
+            for col in ws.columns:
+                max_length = 0
+                column = col[0].column_letter
+                for cell in col:
+                    try:
+                        if cell.value and len(str(cell.value)) > max_length:
+                            max_length = min(len(str(cell.value)), 100)  # Cap at 100 chars
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)
+                ws.column_dimensions[column].width = adjusted_width
+            
+            # Save to buffer
+            buffer = io.BytesIO()
+            wb.save(buffer)
+            buffer.seek(0)
+            
+            response = HttpResponse(
+                buffer.getvalue(),
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = 'attachment; filename="test_cases.xlsx"'
+            return response
+        except Exception as e:
+            print(f"[EXCEL EXPORT ERROR] {str(e)}")
+            print(traceback.format_exc())
+            return JsonResponse({'error': f'Excel export failed: {str(e)}'}, status=500)
+    
+    def _export_word(self, test_cases, source_info):
+        from django.http import HttpResponse
+        import io
+        
+        try:
+            from docx import Document
+            from docx.shared import Inches, Pt
+            from docx.enum.text import WD_ALIGN_PARAGRAPH
+        except ImportError:
+            return JsonResponse({'error': 'python-docx not installed. Run: pip install python-docx'}, status=500)
+        
+        doc = Document()
+        
+        # Title
+        title = doc.add_heading('Test Cases Document', 0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        if source_info:
+            doc.add_paragraph(f"Source: {source_info}")
+        
+        doc.add_paragraph(f"Total Test Cases: {len(test_cases)}")
+        doc.add_paragraph("")
+        
+        # Test cases
+        for tc in test_cases:
+            doc.add_heading(f"{tc.get('id', 'TC')} - {tc.get('title', 'Untitled')}", level=2)
+            
+            doc.add_paragraph(f"Priority: {tc.get('priority', 'N/A')} | Type: {tc.get('type', 'N/A')}")
+            
+            doc.add_heading('Description', level=3)
+            doc.add_paragraph(tc.get('description', 'No description'))
+            
+            doc.add_heading('Preconditions', level=3)
+            preconditions = tc.get('preconditions', [])
+            if isinstance(preconditions, list):
+                for pre in preconditions:
+                    doc.add_paragraph(f"• {pre}")
+            else:
+                doc.add_paragraph(f"• {preconditions}" if preconditions else "None")
+            
+            doc.add_heading('Steps', level=3)
+            steps = tc.get('steps', [])
+            if isinstance(steps, list):
+                for i, step in enumerate(steps, 1):
+                    doc.add_paragraph(f"{i}. {step}")
+            else:
+                doc.add_paragraph(str(steps) if steps else "No steps")
+            
+            doc.add_heading('Expected Result', level=3)
+            doc.add_paragraph(tc.get('expected_result', 'No expected result specified'))
+            
+            doc.add_paragraph("")  # Spacing between test cases
+        
+        # Save to buffer
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+        response['Content-Disposition'] = 'attachment; filename="test_cases.docx"'
+        return response
+
