@@ -6,6 +6,10 @@
 
 {% block content %}
 <style>
+    * {
+        scroll-behavior: smooth;
+    }
+
     .tcg-container {
         width: 100%;
         max-width: 1400px;
@@ -13,9 +17,11 @@
         display: flex;
         flex-direction: column;
         gap: 20px;
+        padding: 20px;
         padding-bottom: 40px;
-        height: 100%;
+        height: calc(100vh - 120px);
         overflow-y: auto;
+        scroll-behavior: smooth;
     }
 
     /* Custom scrollbar */
@@ -411,8 +417,8 @@
     /* Test Cases Table */
     .tc-table-container {
         overflow-x: auto;
-        max-height: calc(100vh - 400px);
-        min-height: 300px;
+        max-height: calc(100vh - 350px);
+        min-height: 400px;
         overflow-y: auto;
         scroll-behavior: smooth;
     }
@@ -702,6 +708,10 @@
                     <h4>🔧 Backend Test Cases</h4>
                     <span id="beStoryCount">0 stories</span>
                 </div>
+                <div class="regenerate-panel">
+                    <input type="text" id="bePrompt" placeholder="Regenerate with: e.g., Add more API validation tests..." />
+                    <button class="btn btn-warning" onclick="regenerateCategory('BE')">🔄 Regenerate BE</button>
+                </div>
                 <div class="category-stories" id="beStories"></div>
                 <div class="tc-table-container">
                     <table class="tc-table">
@@ -718,10 +728,6 @@
                         <tbody id="beTestCases"></tbody>
                     </table>
                 </div>
-                <div class="regenerate-panel">
-                    <input type="text" id="bePrompt" placeholder="Regenerate with: e.g., Add more API validation tests..." />
-                    <button class="btn btn-warning" onclick="regenerateCategory('BE')">🔄 Regenerate BE</button>
-                </div>
             </div>
 
             <!-- FE Section -->
@@ -729,6 +735,10 @@
                 <div class="category-header">
                     <h4>🎨 Frontend Test Cases</h4>
                     <span id="feStoryCount">0 stories</span>
+                </div>
+                <div class="regenerate-panel">
+                    <input type="text" id="fePrompt" placeholder="Regenerate with: e.g., Add accessibility tests..." />
+                    <button class="btn btn-warning" onclick="regenerateCategory('FE')">🔄 Regenerate FE</button>
                 </div>
                 <div class="category-stories" id="feStories"></div>
                 <div class="tc-table-container">
@@ -746,10 +756,6 @@
                         <tbody id="feTestCases"></tbody>
                     </table>
                 </div>
-                <div class="regenerate-panel">
-                    <input type="text" id="fePrompt" placeholder="Regenerate with: e.g., Add accessibility tests..." />
-                    <button class="btn btn-warning" onclick="regenerateCategory('FE')">🔄 Regenerate FE</button>
-                </div>
             </div>
 
             <!-- QA Section -->
@@ -757,6 +763,10 @@
                 <div class="category-header">
                     <h4>🧪 QA Test Cases</h4>
                     <span id="qaStoryCount">0 stories</span>
+                </div>
+                <div class="regenerate-panel">
+                    <input type="text" id="qaPrompt" placeholder="Regenerate with: e.g., Focus on regression tests..." />
+                    <button class="btn btn-warning" onclick="regenerateCategory('QA')">🔄 Regenerate QA</button>
                 </div>
                 <div class="category-stories" id="qaStories"></div>
                 <div class="tc-table-container">
@@ -774,10 +784,6 @@
                         <tbody id="qaTestCases"></tbody>
                     </table>
                 </div>
-                <div class="regenerate-panel">
-                    <input type="text" id="qaPrompt" placeholder="Regenerate with: e.g., Focus on regression tests..." />
-                    <button class="btn btn-warning" onclick="regenerateCategory('QA')">🔄 Regenerate QA</button>
-                </div>
             </div>
 
             <!-- OTHER Section -->
@@ -785,6 +791,10 @@
                 <div class="category-header">
                     <h4>📦 Other Test Cases</h4>
                     <span id="otherStoryCount">0 stories</span>
+                </div>
+                <div class="regenerate-panel">
+                    <input type="text" id="otherPrompt" placeholder="Regenerate with: e.g., Add deployment verification..." />
+                    <button class="btn btn-warning" onclick="regenerateCategory('OTHER')">🔄 Regenerate</button>
                 </div>
                 <div class="category-stories" id="otherStories"></div>
                 <div class="tc-table-container">
@@ -801,10 +811,6 @@
                         </thead>
                         <tbody id="otherTestCases"></tbody>
                     </table>
-                </div>
-                <div class="regenerate-panel">
-                    <input type="text" id="otherPrompt" placeholder="Regenerate with: e.g., Add deployment verification..." />
-                    <button class="btn btn-warning" onclick="regenerateCategory('OTHER')">🔄 Regenerate</button>
                 </div>
             </div>
         </div>

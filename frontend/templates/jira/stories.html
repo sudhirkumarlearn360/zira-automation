@@ -1,0 +1,363 @@
+{% extends 'base.html' %}
+
+{% block header_extra %}
+    <h2>🚀 AI Task Generator</h2>
+{% endblock %}
+
+{% block content %}
+<style>
+    .story-container {
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .panel {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(9, 30, 66, 0.1);
+        padding: 30px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #5e6c84;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+    }
+
+    .form-group input, .form-group select, .form-group textarea {
+        width: 100%;
+        padding: 12px 14px;
+        border: 2px solid #dfe1e6;
+        border-radius: 4px;
+        font-size: 15px;
+        transition: border-color 0.2s;
+        box-sizing: border-box;
+    }
+
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+        outline: none;
+        border-color: #0052cc;
+    }
+
+    .btn-submit {
+        background: #0052cc;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background 0.2s;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-submit:hover {
+        background: #0747a6;
+    }
+
+    .btn-submit:disabled {
+        background: #a5adba;
+        cursor: not-allowed;
+    }
+
+    .result-box {
+        margin-top: 30px;
+        padding: 20px;
+        border-radius: 4px;
+        display: none;
+    }
+
+    .result-box.success {
+        display: block;
+        background: #e3fcef;
+        border: 1px solid #36b37e;
+        color: #006644;
+    }
+
+    .result-box.error {
+        display: block;
+        background: #ffebe6;
+        border: 1px solid #ff5630;
+        color: #bf2600;
+    }
+
+    .result-box h3 {
+        margin-top: 0;
+        margin-bottom: 10px;
+    }
+    
+    .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(255,255,255,.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 1s ease-in-out infinite;
+        display: none;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+
+<div class="story-container">
+    <div class="panel">
+        <h3 style="margin-top: 0; margin-bottom: 25px; color: #172b4d;">Create Jira Task from Story</h3>
+        
+        <form id="taskGenerationForm">
+            <div class="form-group">
+                <label for="storyKey">Story Key (e.g. CAR-123)</label>
+                <input type="text" id="storyKey" name="story_key" placeholder="Enter the exact key of the parent story..." required>
+            </div>
+
+            <div class="form-group">
+                <label for="taskType">Task Type (Category)</label>
+                <select id="taskType" name="task_type" required>
+                    <option value="Backend">Backend Task</option>
+                    <option value="Frontend">Frontend Task</option>
+                    <option value="Bug">QA / Bug</option>
+                    <option value="General">General Technical Task</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="context">Additional Context (Optional)</label>
+                <textarea id="context" name="additional_context" rows="4" placeholder="Provide extra instructions for the AI on how to implement this task..."></textarea>
+            </div>
+
+            <button type="button" id="previewBtn" class="btn-submit">
+                <span class="btn-text">Generate Preview</span>
+                <div class="loading-spinner" id="previewSpinner"></div>
+            </button>
+        </form>
+
+        <!-- Step 2: Preview Panel (Hidden initially) -->
+        <div id="previewPanel" style="display: none; margin-top: 30px; border-top: 2px solid #dfe1e6; padding-top: 25px;">
+            <h4 style="margin-top: 0; margin-bottom: 15px; color: #172b4d;">Step 2: Review & Edit Task Content</h4>
+            <p style="font-size: 13px; color: #5e6c84; margin-bottom: 15px;">You can review and modify the text fields below before confirming creation.</p>
+            
+            <div id="dynamicFormContainer"></div>
+            
+            <button type="button" id="confirmBtn" class="btn-submit" style="background: #36b37e;">
+                <span class="btn-text">Confirm & Create Task in Jira</span>
+                <div class="loading-spinner" id="confirmSpinner"></div>
+            </button>
+        </div>
+
+        <div id="resultBox" class="result-box"></div>
+    </div>
+</div>
+
+<script>
+let currentStoryKey = '';
+
+// Step 1: Request Preview
+document.getElementById('previewBtn').addEventListener('click', function(e) {
+    const previewBtn = document.getElementById('previewBtn');
+    const previewSpinner = document.getElementById('previewSpinner');
+    const btnText = previewBtn.querySelector('.btn-text');
+    const resultBox = document.getElementById('resultBox');
+    const previewPanel = document.getElementById('previewPanel');
+    
+    // Reset state
+    resultBox.style.display = 'none';
+    previewPanel.style.display = 'none';
+    previewBtn.disabled = true;
+    previewSpinner.style.display = 'inline-block';
+    btnText.innerText = 'Generating Preview...';
+
+    const payload = {
+        story_key: document.getElementById('storyKey').value.trim(),
+        task_type: document.getElementById('taskType').value,
+        additional_context: document.getElementById('context').value.trim()
+    };
+    
+    currentStoryKey = payload.story_key;
+
+    if (!payload.story_key) {
+        alert("Please enter a Story Key.");
+        previewBtn.disabled = false;
+        previewSpinner.style.display = 'none';
+        btnText.innerText = 'Generate Preview';
+        return;
+    }
+
+    fetch('/jira/stories/preview/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json().then(data => ({ status: response.status, body: data })))
+    .then(result => {
+        previewBtn.disabled = false;
+        previewSpinner.style.display = 'none';
+        btnText.innerText = 'Regenerate Preview';
+        
+        if (result.status === 200 && result.body.success) {
+            // Show preview panel and render dynamic form fields
+            const content = result.body.generated_content;
+            const container = document.getElementById('dynamicFormContainer');
+            container.innerHTML = '';
+            
+            let formHtml = '';
+            for (const [key, value] of Object.entries(content)) {
+                let readableKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                formHtml += `<div class="form-group"><label>${readableKey}</label>`;
+                
+                if (key === 'summary') {
+                    const safeVal = (value || '').replace(/"/g, '&quot;');
+                    formHtml += `<input type="text" data-key="${key}" class="dynamic-field" value="${safeVal}">`;
+                } else if (typeof value === 'string') {
+                    // Count newlines to determine rows, min 3 max 10
+                    const lines = (value.match(/\n/g) || []).length + 2;
+                    formHtml += `<textarea data-key="${key}" class="dynamic-field" rows="${Math.max(3, Math.min(lines, 10))}">${value}</textarea>`;
+                } else if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'string') {
+                    formHtml += `<textarea data-key="${key}" data-type="string-array" class="dynamic-field" rows="${Math.max(3, value.length + 1)}">${value.join('\n')}</textarea>`;
+                } else {
+                    // Complex JSON objects/arrays or empty arrays
+                    formHtml += `<textarea data-key="${key}" data-type="json" class="dynamic-field" rows="6" style="font-family: monospace; font-size: 12px; background: #f4f5f7;">${JSON.stringify(value, null, 2)}</textarea>`;
+                }
+                formHtml += `</div>`;
+            }
+            container.innerHTML = formHtml;
+            previewPanel.style.display = 'block';
+            
+            // Scroll to the preview panel smoothly
+            previewPanel.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            resultBox.className = 'result-box error';
+            resultBox.innerHTML = `
+                <h3>❌ Preview Error</h3>
+                <p>${result.body.error || 'Failed to generate preview.'}</p>
+            `;
+            resultBox.style.display = 'block';
+        }
+    })
+    .catch(error => {
+        previewBtn.disabled = false;
+        previewSpinner.style.display = 'none';
+        btnText.innerText = 'Generate Preview';
+        
+        resultBox.className = 'result-box error';
+        resultBox.innerHTML = `<h3>❌ Network Error</h3><p>${error.message}</p>`;
+        resultBox.style.display = 'block';
+    });
+});
+
+// Step 2: Confirm Creation
+document.getElementById('confirmBtn').addEventListener('click', function(e) {
+    const confirmBtn = document.getElementById('confirmBtn');
+    const confirmSpinner = document.getElementById('confirmSpinner');
+    const btnText = confirmBtn.querySelector('.btn-text');
+    const resultBox = document.getElementById('resultBox');
+    
+    // Rebuild JSON payload from dynamic form fields
+    let parsedPayload = {};
+    let hasJsonError = false;
+    
+    document.querySelectorAll('.dynamic-field').forEach(field => {
+        const key = field.getAttribute('data-key');
+        const type = field.getAttribute('data-type');
+        
+        if (type === 'string-array') {
+            parsedPayload[key] = field.value.split('\n').filter(s => s.trim() !== '');
+        } else if (type === 'json') {
+            try {
+                parsedPayload[key] = JSON.parse(field.value);
+            } catch (err) {
+                alert(`Invalid JSON format in the '${key}' field. Please fix syntax errors.`);
+                hasJsonError = true;
+            }
+        } else {
+            parsedPayload[key] = field.value;
+        }
+    });
+
+    if (hasJsonError) return;
+
+    // Reset state for submission
+    resultBox.style.display = 'none';
+    confirmBtn.disabled = true;
+    confirmSpinner.style.display = 'inline-block';
+    btnText.innerText = 'Creating Task in Jira...';
+    
+    // Disable early preview regeneration while creating
+    document.getElementById('previewBtn').disabled = true;
+
+    fetch('/jira/stories/create/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            story_key: currentStoryKey,
+            ai_payload: parsedPayload
+        })
+    })
+    .then(response => response.json().then(data => ({ status: response.status, body: data })))
+    .then(result => {
+        confirmBtn.disabled = false;
+        confirmSpinner.style.display = 'none';
+        btnText.innerText = 'Confirm & Create Task in Jira';
+        document.getElementById('previewBtn').disabled = false;
+        
+        if (result.status === 200 && result.body.success) {
+            resultBox.className = 'result-box success';
+            resultBox.innerHTML = `
+                <h3>✅ Task Created Successfully</h3>
+                <p>New Task Key: <strong>${result.body.new_task_key}</strong></p>
+                <p>Parent Story: ${result.body.story_key}</p>
+                <div style="margin-top: 15px;">
+                    <a href="https://careers-360.atlassian.net/browse/${result.body.new_task_key}" target="_blank" style="color: #006644; text-decoration: none; font-weight: bold;">View New Task in Jira ↗</a>
+                </div>
+            `;
+            resultBox.style.display = 'block';
+            document.getElementById('previewPanel').style.display = 'none';
+            document.getElementById('taskGenerationForm').reset();
+            
+            // Scroll to results
+            resultBox.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            resultBox.className = 'result-box error';
+            resultBox.innerHTML = `
+                <h3>❌ Creation Error</h3>
+                <p>${result.body.error || 'Failed to create task.'}</p>
+                <p style="font-size: 11px; margin-top: 10px;">${JSON.stringify(result.body.details || {})}</p>
+            `;
+            resultBox.style.display = 'block';
+        }
+    })
+    .catch(error => {
+        confirmBtn.disabled = false;
+        confirmSpinner.style.display = 'none';
+        btnText.innerText = 'Confirm & Create Task in Jira';
+        document.getElementById('previewBtn').disabled = false;
+        
+        resultBox.className = 'result-box error';
+        resultBox.innerHTML = `<h3>❌ Network Error during Creation</h3><p>${error.message}</p>`;
+        resultBox.style.display = 'block';
+    });
+});
+</script>
+{% endblock %}

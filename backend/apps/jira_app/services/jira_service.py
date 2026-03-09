@@ -98,30 +98,63 @@ class JiraService:
             print(f"Error fetching story details: {e}")
             return None
 
-    def create_task(self, parent_epic_key, task_data):
+    def create_task(self, task_data, parent_key=None, project_key=None):
         if not self.base_url:
              return {"key": "MOCK-TASK-NEW", "self": "http://mock/task/new"}
+             
+        # Defensive handling if AI returns a list of tasks instead of a single dict
+        if isinstance(task_data, list):
+            task_data = task_data[0] if len(task_data) > 0 else {}
 
-        project_key = parent_epic_key.split('-')[0]
+        # Determine project key logic: explicit > from parent > fallback
+        if not project_key and parent_key:
+            project_key = parent_key.split('-')[0]
+        elif not project_key:
+            project_key = "CAR" # Fallback or fetch from settings
 
         adf_content = self._create_adf_content(task_data)
 
+        # Base fields
+        fields = {
+            "project": { "key": project_key },
+            "summary": task_data.get('summary', 'New Task'),
+            "description": adf_content
+        }
+
+        # Handle Hierarchy:
+        # If we have a parent key, and it's a story (e.g., from /stories/ generate flow)
+        # we likely need to create a "Sub-task" instead of "Task"
+        if parent_key:
+            fields["parent"] = { "key": parent_key }
+            fields["issuetype"] = { "name": "Sub-task" }
+        else:
+            fields["issuetype"] = { "name": "Task" }
+
         payload = {
-            "fields": {
-                "project": { "key": project_key },
-                "summary": task_data.get('summary'),
-                "description": adf_content,
-                "issuetype": { "name": "Task" },
-                "parent": { "key": parent_epic_key } 
-            }
+            "fields": fields
         }
         
         url = f"{self.base_url}/rest/api/3/issue"
         try:
             response = requests.post(url, headers=self.headers, data=json.dumps(payload), auth=self.auth)
-            # 400 errors often mean ADF format issues, print them
+            
+            # Retroactively handle cases where Sub-task is rejected or Task parent link is rejected
+            if response.status_code == 400:
+                print(f"Jira Error 400: {response.text}. Attempting fallback...")
+                
+                # If Sub-task failed, maybe try Task?
+                if fields["issuetype"]["name"] == "Sub-task":
+                    fields["issuetype"]["name"] = "Task"
+                    response = requests.post(url, headers=self.headers, data=json.dumps({"fields": fields}), auth=self.auth)
+                
+                # If it still failed or was Task originally, try stripping parent
+                if response.status_code == 400 and "parent" in fields:
+                     del fields["parent"]
+                     response = requests.post(url, headers=self.headers, data=json.dumps({"fields": fields}), auth=self.auth)
+                 
             if response.status_code >= 400:
                 print(f"Jira Error {response.status_code}: {response.text}")
+                
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -129,46 +162,68 @@ class JiraService:
             return None
 
     def _create_adf_content(self, data):
-        """Constructs Jira ADF content with tables and formatting."""
+        """Constructs Jira ADF content dynamically from parsed JSON."""
+        if isinstance(data, list):
+            data = data[0] if len(data) > 0 else {}
+            
         content = []
 
-        # Description
-        if data.get('description'):
-            content.append(self._adf_paragraph(data['description']))
+        # Description ALWAYS comes first if present
+        desc_text = data.get('description')
+        if desc_text and isinstance(desc_text, str):
+            content.append(self._adf_paragraph(desc_text))
 
-        # Acceptance Criteria
-        if data.get('acceptance_criteria'):
-            content.append(self._adf_heading("Acceptance Criteria"))
-            content.append(self._adf_bullet_list(data['acceptance_criteria']))
+        reserved_keys = ['summary', 'description']
 
-        # Tech Stack
-        if data.get('tech_stack'):
-            content.append(self._adf_heading("Tech Stack"))
-            content.append(self._adf_bullet_list(data['tech_stack']))
+        for key, value in data.items():
+            if key in reserved_keys or not value:
+                continue
 
-        # API Endpoints (Table)
-        if data.get('api_endpoints'):
-            content.append(self._adf_heading("API Endpoints"))
-            content.append(self._adf_api_table(data['api_endpoints']))
+            # Format the heading (e.g., 'api_endpoints' -> 'Api Endpoints')
+            heading_title = key.replace('_', ' ').title()
+            content.append(self._adf_heading(heading_title))
 
-        # cURL
-        if data.get('api_curl'):
-            content.append(self._adf_heading("Example Request"))
-            content.append({
-                "type": "codeBlock",
-                "attrs": { "language": "bash" },
-                "content": [{ "type": "text", "text": data['api_curl'] }]
-            })
+            if isinstance(value, str):
+                # Heuristic for code blocks
+                if key.endswith('curl') or value.strip().startswith(('curl ', 'SELECT ', '{', '[')):
+                    lang = 'bash' if 'curl' in key.lower() else ('sql' if 'sql' in key.lower() else 'json')
+                    content.append({
+                        "type": "codeBlock",
+                        "attrs": { "language": lang },
+                        "content": [{ "type": "text", "text": value }]
+                    })
+                else:
+                    paragraphs = [p for p in value.split('\n\n') if p.strip()]
+                    if not paragraphs: paragraphs = [value]
+                    for p in paragraphs:
+                        content.append(self._adf_paragraph(p.strip()))
 
-        # DB Schema (Table)
-        if data.get('database_schema'):
-            content.append(self._adf_heading("Database Schema"))
-            content.append(self._adf_db_table(data['database_schema']))
-            
-        # Infrastructure
-        if data.get('infrastructure'):
-            content.append(self._adf_heading("Infrastructure"))
-            content.append(self._adf_bullet_list(data['infrastructure']))
+            elif isinstance(value, list) and len(value) > 0:
+                # List of strings -> Bullet list
+                if all(isinstance(item, str) for item in value):
+                    content.append(self._adf_bullet_list(value))
+                # List of dicts -> Table
+                elif all(isinstance(item, dict) for item in value):
+                    headers = []
+                    for item in value:
+                        for k in item.keys():
+                            if k not in headers: headers.append(k)
+                    
+                    if headers:
+                        display_headers = [h.replace('_', ' ').title() for h in headers]
+                        content.append(self._create_table_adf(display_headers, value, headers))
+                    else:
+                        content.append(self._adf_paragraph("Empty records"))
+                else:
+                    # Fallback mixed list
+                    content.append(self._adf_paragraph(str(value)))
+                    
+            elif isinstance(value, dict):
+                content.append({
+                    "type": "codeBlock",
+                    "attrs": { "language": "json" },
+                    "content": [{ "type": "text", "text": json.dumps(value, indent=2) }]
+                })
 
         return {
             "type": "doc",
@@ -201,55 +256,39 @@ class JiraService:
             ]
         }
 
-    def _adf_api_table(self, apis):
-        if not isinstance(apis, list): return self._adf_paragraph(str(apis))
-        
+    def _create_table_adf(self, headers, items, keys):
+        if not items or not isinstance(items, list):
+            return self._adf_paragraph("No items provided.")
+            
         rows = []
-        # Header
-        rows.append({
-            "type": "tableRow",
-            "content": [
-                { "type": "tableHeader", "content": [ self._adf_paragraph("Method") ] },
-                { "type": "tableHeader", "content": [ self._adf_paragraph("Endpoint") ] },
-                { "type": "tableHeader", "content": [ self._adf_paragraph("Description") ] }
-            ]
-        })
-        # Data
-        for api in apis:
-            if isinstance(api, dict):
-                rows.append({
-                    "type": "tableRow",
-                    "content": [
-                        { "type": "tableCell", "content": [ self._adf_paragraph(api.get("method", "")) ] },
-                        { "type": "tableCell", "content": [ self._adf_paragraph(api.get("endpoint", "")) ] },
-                        { "type": "tableCell", "content": [ self._adf_paragraph(api.get("description", "")) ] }
-                    ]
-                })
-        return { "type": "table", "content": rows }
+        # Header Row
+        header_cells = [
+            {
+                "type": "tableHeader",
+                "content": [ self._adf_paragraph(h) ]
+            } for h in headers
+        ]
+        rows.append({ "type": "tableRow", "content": header_cells })
 
-    def _adf_db_table(self, schema):
-        if not isinstance(schema, list): return self._adf_paragraph(str(schema))
-        
-        rows = []
-        rows.append({
-            "type": "tableRow",
-            "content": [
-                { "type": "tableHeader", "content": [ self._adf_paragraph("Table") ] },
-                { "type": "tableHeader", "content": [ self._adf_paragraph("Columns") ] }
+        # Data Rows
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+                
+            cells = [
+                {
+                    "type": "tableCell",
+                    "content": [ self._adf_paragraph(str(item.get(k, ""))) ]
+                } for k in keys
             ]
-        })
-        for item in schema:
-            if isinstance(item, dict):
-                cols = item.get("columns", [])
-                if isinstance(cols, list): cols = ", ".join(cols)
-                rows.append({
-                    "type": "tableRow",
-                    "content": [
-                        { "type": "tableCell", "content": [ self._adf_paragraph(item.get("table", "")) ] },
-                        { "type": "tableCell", "content": [ self._adf_paragraph(str(cols)) ] }
-                    ]
-                })
-        return { "type": "table", "content": rows }
+            rows.append({ "type": "tableRow", "content": cells })
+
+        return {
+            "type": "table",
+            "attrs": { "isNumberColumnEnabled": False, "layout": "default" },
+            "content": rows
+        }
+
 
     def _adf_to_html(self, content_node):
         """Converts Atlassian Document Format (ADF) to HTML."""

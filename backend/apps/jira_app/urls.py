@@ -3,7 +3,8 @@ from .views import (
     EpicStoriesView, PreviewTasksView, CreateConfirmedTasksView, 
     IndexView, StoryDetailView, HomeView,
     TestCaseGeneratorView, GenerateTestCasesView, RefineTestCasesView, 
-    ExportTestCasesView, RegenerateCategoryTestCasesView
+    ExportTestCasesView, RegenerateCategoryTestCasesView,
+    StoriesView, PreviewStoryTaskAPIView, CreateStoryTaskAPIView
 )
 
 urlpatterns = [
@@ -13,6 +14,10 @@ urlpatterns = [
     path('story/<str:story_key>/', StoryDetailView.as_view(), name='story_detail'),
     path('preview-tasks/', PreviewTasksView.as_view(), name='preview_tasks'),
     path('create-tasks/', CreateConfirmedTasksView.as_view(), name='create_tasks'),
+    # Stories Generator
+    path('stories/', StoriesView.as_view(), name='stories'),
+    path('stories/preview/', PreviewStoryTaskAPIView.as_view(), name='preview_story_task'),
+    path('stories/create/', CreateStoryTaskAPIView.as_view(), name='create_story_task'),
     # Test Case Generator
     path('test-cases/', TestCaseGeneratorView.as_view(), name='test_case_generator'),
     path('generate-test-cases/', GenerateTestCasesView.as_view(), name='generate_test_cases'),

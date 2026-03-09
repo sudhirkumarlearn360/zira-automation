@@ -20,16 +20,16 @@ class AIService:
         if self.gemini_key:
             genai.configure(api_key=self.gemini_key)
 
-    def generate_task_from_story(self, story_text, task_type="General"):
+    def generate_task_from_story(self, story_text, task_type="General", additional_context=""):
         """
         Routing method to choose provider.
         """
         role_description = self._get_role_description(task_type)
         
         if self.provider == 'GEMINI':
-            return self._generate_gemini(story_text, role_description, task_type)
+            return self._generate_gemini(story_text, role_description, task_type, additional_context)
         else:
-            return self._generate_openai(story_text, role_description, task_type)
+            return self._generate_openai(story_text, role_description, task_type, additional_context)
 
     def _get_role_description(self, task_type):
         base = "You are a senior Jira delivery manager"
@@ -41,14 +41,14 @@ class AIService:
             return f"{base} specializing in Quality Assurance and Test Automation."
         return f"{base}."
 
-    def _generate_openai(self, story_text, role_description, task_type):
+    def _generate_openai(self, story_text, role_description, task_type, additional_context):
         # Extract summary for fallback
         original_summary = story_text.split('\n')[0].replace('Summary: ', '')
 
         if not self.openai_client:
-             return self._mock_response(original_summary)
+             raise ValueError("OpenAI API Key is missing. Rate limit or missing env var.")
 
-        prompt = self._get_prompt(story_text, task_type)
+        prompt = self._get_prompt(story_text, task_type, additional_context)
 
         try:
             response = self.openai_client.chat.completions.create(
@@ -64,15 +64,15 @@ class AIService:
             return json.loads(content)
         except Exception as e:
             logger.error(f"The AI service was unavailable. OpenAI Error: {e}")
-            return self._mock_response(original_summary)
+            raise e
 
-    def _generate_gemini(self, story_text, role_description, task_type):
+    def _generate_gemini(self, story_text, role_description, task_type, additional_context):
         original_summary = story_text.split('\n')[0].replace('Summary: ', '')
 
         if not self.gemini_key:
-            return self._mock_response(original_summary)
+            raise ValueError("Gemini API Key is missing. Rate limit or missing env var.")
 
-        prompt = f"System: {role_description}\n\n{self._get_prompt(story_text, task_type)}"
+        prompt = f"System: {role_description}\n\n{self._get_prompt(story_text, task_type, additional_context)}"
         
         try:
             model_name = os.environ.get('AI_MODEL', 'gemini-1.5-flash')
@@ -81,9 +81,9 @@ class AIService:
             return json.loads(response.text)
         except Exception as e:
             logger.error(f"The AI service was unavailable. Gemini Error: {e}")
-            return self._mock_response(original_summary)
+            raise e
 
-    def _get_prompt(self, story_text, task_type):
+    def _get_prompt(self, story_text, task_type, additional_context):
         title_instruction = "Generate a concise, technical title (e.g. 'Implement ...')"
         
         if task_type == 'Backend':
@@ -91,9 +91,14 @@ class AIService:
         elif task_type == 'Frontend':
             title_instruction = "CRITICAL: The title MUST start with the exact string 'FE Task - '. Example: 'FE Task - Login Page UI'."
         
+        context_block = f"""
+CRITICAL ADDITIONAL INSTRUCTIONS FROM USER: 
+{additional_context}
+""" if additional_context else ""
+
         return f"""
 Convert the following story into a detailed Technical Implementation Plan.
-
+{context_block}
 Strict Naming Rules:
 - If Backend: Title MUST start with "BE Task - "
 - If Frontend: Title MUST start with "FE Task - "
@@ -101,16 +106,10 @@ Strict Naming Rules:
 
 Rules:
 - Return ONLY valid JSON
-- Keys must automatically include:
-  "summary": "{title_instruction}",
-  "description": "Generate a detailed technical description of the work required, including context ({task_type} focus) and goals.",
-  "acceptance_criteria": ["String"],
-  "tech_stack": ["String"],
-  "api_endpoints": [{{"method": "GET/POST", "endpoint": "/url", "description": "text"}}],
-  "api_curl": "String (code block)",
-  "database_schema": [{{"table": "name", "columns": ["col type", ...]}}],
-  "infrastructure": ["String"],
-  "implementation_steps": ["String"]
+- You MUST create ANY custom JSON keys needed to perfectly represent the information from the user's Context (e.g., "url_aliases", "seo_metadata", etc.).
+- CRITICAL: If the user provides API endpoints, cURL commands, or database tables in their Context, you MUST map them to the keys `api_endpoints`, `api_curl`, and `database_schema` respectively.
+- If the user provides other raw data snippets, DO NOT squash them into the description. Create a new descriptive top-level JSON key for them and put the data inside.
+- Keys must automatically include "summary" (using the title instruction: {title_instruction}) and "description".
 
 Story:
 {story_text}

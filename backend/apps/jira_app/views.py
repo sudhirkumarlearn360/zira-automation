@@ -6,7 +6,6 @@ from django.utils.decorators import method_decorator
 import json
 
 from .services.jira_service import JiraService
-from .services.jira_service import JiraService
 from .services.ai_service import AIService
 from django.views.generic import TemplateView
 
@@ -110,8 +109,7 @@ class CreateConfirmedTasksView(View):
                 content = task_item.get('generated_content')
                 
                 # Create Task
-                # new_task = jira_service.create_task(epic_key, content)
-                new_task = None # jira_service.create_task(epic_key, content)
+                new_task = jira_service.create_task(content, parent_key=epic_key)
                 
                 if new_task:
                     results.append({'key': original_key, 'status': 'CREATED', 'new_task_key': new_task.get('key')})
@@ -121,6 +119,90 @@ class CreateConfirmedTasksView(View):
             return JsonResponse({'results': results})
             
         except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+
+# ==================== STORIES GENERATOR VIEWS ====================
+
+class StoriesView(View):
+    """Main UI view for /jira/stories/ endpoint."""
+    def get(self, request):
+        return render(request, 'jira/stories.html')
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PreviewStoryTaskAPIView(View):
+    """API endpoint to generate AI task payload from a story (Preview mode)."""
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            story_key = data.get('story_key')
+            task_type = data.get('task_type', 'General')
+            additional_context = data.get('additional_context', '')
+
+            if not story_key:
+                return JsonResponse({'error': 'Story key is required'}, status=400)
+
+            jira_service = JiraService()
+            ai_service = AIService()
+
+            # Fetch story details
+            story_detail = jira_service.get_story_details(story_key)
+            if not story_detail:
+                return JsonResponse({'error': f'Failed to fetch story {story_key}. It may not exist or require authentication.'}, status=404)
+
+            # Build content payload for AI
+            content_for_ai = f"Summary: {story_detail['summary']}\nDescription: {story_detail.get('description', '')}"
+
+            # Request generation
+            ai_json = ai_service.generate_task_from_story(content_for_ai, task_type, additional_context)
+            if not ai_json:
+                print(f"Error: AI generation failed for story {story_key}")
+                return JsonResponse({'error': 'Failed to generate task from AI service.'}, status=500)
+
+            return JsonResponse({
+                'success': True,
+                'message': 'AI Task Preview Generated',
+                'story_key': story_key,
+                'generated_content': ai_json
+            })
+
+        except Exception as e:
+            print(f"Exception in PreviewStoryTaskAPIView: {e}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class CreateStoryTaskAPIView(View):
+    """API endpoint to create a Jira task from a confirmed AI payload."""
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            story_key = data.get('story_key')
+            ai_payload = data.get('ai_payload')
+
+            if not story_key or not ai_payload:
+                return JsonResponse({'error': 'Story key and AI payload are required'}, status=400)
+
+            jira_service = JiraService()
+
+            # Create in Jira
+            print(f"Attempting to create task with edited AI JSON: {ai_payload}")
+            new_task = jira_service.create_task(ai_payload, parent_key=story_key)
+
+            if new_task and 'key' in new_task:
+                 return JsonResponse({
+                     'success': True,
+                     'message': 'Task Successfully Created',
+                     'story_key': story_key,
+                     'new_task_key': new_task['key']
+                 })
+            else:
+                 print(f"Error: Jira create_task returned {new_task}")
+                 return JsonResponse({'error': 'Failed to create task in Jira.', 'details': new_task}, status=500)
+
+        except Exception as e:
+            print(f"Exception in CreateStoryTaskAPIView: {e}")
             return JsonResponse({'error': str(e)}, status=500)
 
 
